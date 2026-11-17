@@ -39,3 +39,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# training output (scripts/train-handwriting-student.py)
+scripts/out/
