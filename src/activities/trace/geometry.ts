@@ -40,24 +40,6 @@ export function distance(a: Point, b: Point): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-export function distanceToSegment(p: Point, a: Point, b: Point): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const lengthSq = dx * dx + dy * dy;
-  if (lengthSq === 0) return distance(p, a);
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSq));
-  return distance(p, { x: a.x + t * dx, y: a.y + t * dy });
-}
-
-export function distanceToPolyline(p: Point, points: Point[]): number {
-  if (points.length === 1) return distance(p, points[0]);
-  let best = Infinity;
-  for (let i = 1; i < points.length; i++) {
-    best = Math.min(best, distanceToSegment(p, points[i - 1], points[i]));
-  }
-  return best;
-}
-
 export function polylineLength(points: Point[]): number {
   let total = 0;
   for (let i = 1; i < points.length; i++) total += distance(points[i - 1], points[i]);

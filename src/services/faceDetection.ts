@@ -38,5 +38,6 @@ export async function readFace(imageUri: string): Promise<FaceReading | null> {
     smiling: face.smilingProbability,
     leftEyeOpen: face.leftEyeOpenProbability,
     rightEyeOpen: face.rightEyeOpenProbability,
+    box: { x: face.frame.left, y: face.frame.top, width: face.frame.width, height: face.frame.height },
   };
 }

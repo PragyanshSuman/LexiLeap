@@ -1,4 +1,4 @@
-import { Redirect, Stack } from 'expo-router';
+import { Redirect, Stack, usePathname } from 'expo-router';
 import { useParentSession } from '@/store/parentSession';
 import { ThemeScope, useTheme } from '@/theme/useTheme';
 
@@ -8,7 +8,9 @@ import { ThemeScope, useTheme } from '@/theme/useTheme';
  */
 export default function ParentLayout() {
   const unlocked = useParentSession((s) => s.unlocked);
-  if (!unlocked) return <Redirect href="/parent-gate" />;
+  const pathname = usePathname();
+  // After the PIN, go on to the page that was asked for (e.g. a child's writing analysis).
+  if (!unlocked) return <Redirect href={{ pathname: '/parent-gate', params: { next: pathname } }} />;
   return (
     <ThemeScope>
       <ParentStack />

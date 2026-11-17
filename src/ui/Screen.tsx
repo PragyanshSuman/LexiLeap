@@ -25,7 +25,8 @@ export function Screen({ children, scroll, header, footer, edges = ['top', 'bott
   const padding = padded ? { paddingHorizontal: space(5) } : null;
   return (
     <SafeAreaView edges={edges} style={[styles.root, { backgroundColor: colors.bg }]}>
-      {header ? <View style={styles.column}>{header}</View> : null}
+      {/* Full width, so the back button sits at the same spot on every screen and device. */}
+      {header ? <View style={styles.headerRow}>{header}</View> : null}
       {scroll ? (
         <ScrollView
           style={styles.root}
@@ -47,4 +48,5 @@ export function Screen({ children, scroll, header, footer, edges = ['top', 'bott
 const styles = StyleSheet.create({
   root: { flex: 1 },
   column: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' },
+  headerRow: { width: '100%' },
 });

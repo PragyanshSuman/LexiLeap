@@ -7,7 +7,9 @@ import { analyzeFace } from '@/engine/focus';
 import { checkLetter } from '@/handwriting/recognize';
 import type { InkStroke } from '@/handwriting/raster';
 import { isFaceDetectionAvailable, readFace } from '@/services/faceDetection';
+import { loadEmotionModel } from '@/services/emotionModel';
 import { loadHandwritingModel } from '@/services/handwritingModel';
+import { runEmotionModel } from '@/emotion/model';
 import { loadDictionary } from '@/services/pronunciationDictionary';
 import { isSpeechRecognitionAvailable, listenForWord } from '@/services/speechRecognition';
 import { AppText } from '@/ui/AppText';
@@ -49,6 +51,12 @@ function Checks() {
       t = Date.now();
       const model = await loadHandwritingModel();
       log(`handwriting model loaded in ${Date.now() - t} ms`);
+      t = Date.now();
+      const emotionModel = await loadEmotionModel();
+      log(`emotion model loaded in ${Date.now() - t} ms`);
+      t = Date.now();
+      const emotions = runEmotionModel(emotionModel, new Float32Array(64 * 64));
+      log(`emotion model ran in ${Date.now() - t} ms (blank face → ${Object.entries(emotions).sort((a, b) => b[1] - a[1])[0][0]})`);
       for (const target of ['L', 'b']) {
         t = Date.now();
         const result = checkLetter(model, L_STROKES, target);

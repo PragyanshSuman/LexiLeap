@@ -5,7 +5,7 @@ import { ACTIVITIES } from './catalog';
 import { applyPathSession, emptyPath } from './path';
 import { markPlanItem } from './plan';
 import { emptyStreak, recordStreakDay } from './streak';
-import type { ProgressState, SessionOutcome, SessionRecord, SessionResult } from './types';
+import type { Level, ProgressState, SessionOutcome, SessionRecord, SessionResult } from './types';
 
 /** Older sessions are dropped beyond this to keep storage small; aggregates live elsewhere. */
 export const MAX_SESSIONS = 400;
@@ -35,6 +35,8 @@ export function emptyProgress(): ProgressState {
     assessments: [],
     writing: [],
     focus: [],
+    mastery: [],
+    rhymeVault: {},
   };
 }
 
@@ -58,7 +60,7 @@ export function topConfusions(state: ProgressState, limit = 5): { pair: [string,
 export function applySession(
   state: ProgressState,
   result: SessionResult,
-  context: { id: string; day: DayKey; nowIso: string },
+  context: { id: string; day: DayKey; nowIso: string; maxLevel?: Level },
 ): { state: ProgressState; outcome: SessionOutcome } {
   const accuracy = Math.max(0, Math.min(1, mean(result.roundScores)));
   const stars = starsFor(accuracy);
@@ -82,7 +84,7 @@ export function applySession(
   // Activity level & history.
   const previous = state.activities[result.activityId] ?? emptyActivityProgress();
   // Adapt from the level actually played (a session can be eased mid-way).
-  const decision = nextLevel({ ...previous, level: result.level }, accuracy, result.struggles);
+  const decision = nextLevel({ ...previous, level: result.level }, accuracy, result.struggles, context.maxLevel);
   const levelChanged = decision.level !== previous.level;
   const levelChange = decision.level > previous.level ? 'up' : decision.level < previous.level ? 'down' : null;
   const activity = {
@@ -115,7 +117,7 @@ export function applySession(
   }
 
   const planResult = markPlanItem(state.plan, result.activityId, context.day);
-  const pathResult = applyPathSession(state.path ?? emptyPath(), session);
+  const pathResult = applyPathSession(state.path ?? emptyPath(), session, context.maxLevel);
   const starsEarned = stars + (planResult.planCompleted ? PLAN_BONUS_STARS : 0);
 
   const next: ProgressState = {

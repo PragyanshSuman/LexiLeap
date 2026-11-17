@@ -1,27 +1,24 @@
 import * as Crypto from 'expo-crypto';
-import { Redirect, router } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { FocusTracker } from '@/components/FocusTracker';
+import { RecordCheck } from '@/components/RecordCheck';
+import { TestFinished } from '@/components/TestFinished';
 import { pictureFor } from '@/content/words';
-import { scoreSpokenWord, SPEECH_TEST_WORDS, summarizeResults } from '@/engine/assessment';
+import { SPEECH_TEST_WORDS } from '@/engine/assessment';
 import type { SoundResult, SpeechAssessment } from '@/engine/types';
 import { useWordListener } from '@/hooks/useWordListener';
 import { useT } from '@/i18n';
 import { useFeedback } from '@/services/feedback';
-import { pronounce, pronounceHeard } from '@/services/pronunciationDictionary';
-import { shareAssessmentReport } from '@/services/report';
-import { matchSpokenWord } from '@/services/speechMatch';
-import { soundOf } from '@/speech/phonemes';
+import { scoreSpeech } from '@/services/speechScoring';
 import { useActiveProfile, useAppStore } from '@/store/appStore';
-import { accentOn } from '@/theme/color';
-import { useTheme } from '@/theme/useTheme';
 import { AppText } from '@/ui/AppText';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { ProgressBar } from '@/ui/controls';
-import { FeedbackBanner, ScreenIntro, StatTile } from '@/ui/Feedback';
-import { goBackOr, Header } from '@/ui/Header';
+import { FeedbackBanner, ScreenIntro } from '@/ui/Feedback';
+import { Header } from '@/ui/Header';
 import { PopIn } from '@/ui/motion';
 import { Screen } from '@/ui/Screen';
 import { MicButton, SoundButton } from '@/ui/SpeechControls';
@@ -33,8 +30,6 @@ const ACCENT = '#1E3A5F';
 /** The original clinical speech assessment, scored on the device. */
 export default function SpeechTest() {
   const { t } = useT();
-  const { colors } = useTheme();
-  const accentText = accentOn(ACCENT, colors.surface);
   const feedback = useFeedback();
   const profile = useActiveProfile();
   const saveAssessment = useAppStore((s) => s.saveAssessment);
@@ -46,7 +41,6 @@ export default function SpeechTest() {
   const [flash, setFlash] = useState<boolean | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [saved, setSaved] = useState<SpeechAssessment | null>(null);
-  const [sharing, setSharing] = useState(false);
 
   if (!profile) return <Redirect href="/login" />;
   const index = items.length;
@@ -58,7 +52,7 @@ export default function SpeechTest() {
     const next = [...items, result];
     setItems(next);
     if (next.length === SPEECH_TEST_WORDS.length) {
-      const assessment: SpeechAssessment = { id: Crypto.randomUUID(), kind: 'speech', takenAt: new Date().toISOString(), method: auto ? 'auto' : 'adult', items: next };
+      const assessment: SpeechAssessment = { id: Crypto.randomUUID(), kind: 'speech', takenAt: new Date().toISOString(), method: auto || next.every((r) => r.score !== null) ? 'auto' : 'adult', items: next };
       saveAssessment(profile.id, assessment);
       setSaved(assessment);
       setPhase('done');
@@ -73,11 +67,14 @@ export default function SpeechTest() {
       setMessage(t(outcome.error === 'no-speech' ? 'round_no_speech' : outcome.error === 'permission' ? 'round_mic_off' : 'round_mic_error'));
       return;
     }
+    await scoreHeard(outcome.transcripts);
+  };
+
+  /** Scores what the microphone heard, sound by sound. */
+  const scoreHeard = async (transcripts: string[]) => {
+    setMessage(null);
     setChecking(true);
-    const target = await pronounce(word);
-    const exact = matchSpokenWord(word, outcome.transcripts).match === 'exact';
-    const heard = exact ? target.phonemes : await pronounceHeard(outcome.transcripts);
-    const result = scoreSpokenWord(word, target.phonemes, heard, outcome.transcripts[0]);
+    const result = await scoreSpeech(word, transcripts);
     setChecking(false);
     setFlash(result.correct);
     setTimeout(() => {
@@ -103,74 +100,8 @@ export default function SpeechTest() {
   }
 
   if (phase === 'done' && saved) {
-    const summary = summarizeResults(saved.items);
-    return (
-      <Screen
-        scroll
-        header={<Header title={t('assess_title')} onBack={() => goBackOr('/home')} />}
-        footer={
-          <View style={styles.row}>
-            <Button label={t('done')} icon="home" variant="secondary" color={ACCENT} onPress={() => router.dismissTo('/home')} style={styles.flex} />
-            <Button
-              label={t('assess_share')}
-              icon="document-text"
-              color={ACCENT}
-              loading={sharing}
-              style={styles.flex}
-              onPress={async () => {
-                setSharing(true);
-                try {
-                  await shareAssessmentReport(profile, saved);
-                } catch (e) {
-                  Alert.alert(t('assess_title'), e instanceof Error ? e.message : t('something_wrong'));
-                } finally {
-                  setSharing(false);
-                }
-              }}
-            />
-          </View>
-        }
-        overlay={tracker}
-      >
-        <View style={styles.center}>
-          <AppText size={64} fixed center>
-            🏅
-          </AppText>
-          <AppText variant="title" center accessibilityRole="header">
-            {t('assess_done_title')}
-          </AppText>
-          <AppText variant="heading" center color={accentText}>
-            {t('assess_words', { a: summary.wordsRight, b: summary.wordsTotal })}
-          </AppText>
-        </View>
-        {summary.soundAccuracy !== null ? (
-          <View style={styles.stats}>
-            <StatTile label={t('journey_stat_phonics')} value={`${Math.round(summary.soundAccuracy * 100)}%`} color={ACCENT} />
-          </View>
-        ) : null}
-        <Card style={styles.tricky}>
-          <AppText variant="label" weight="bold">
-            {t('assess_tricky')}
-          </AppText>
-          {summary.trickySounds.length === 0 ? (
-            <AppText muted>{t('assess_none')}</AppText>
-          ) : (
-            <View style={styles.chips}>
-              {summary.trickySounds.slice(0, 8).map(({ phoneme, count }) => (
-                <View key={phoneme} style={[styles.chip, { borderColor: colors.warning, backgroundColor: colors.warningSoft }]}>
-                  <AppText variant="heading" weight="bold" color={colors.warning} fixed>
-                    {soundOf(phoneme).sound}
-                  </AppText>
-                  <AppText size={12} fixed muted>
-                    {`${soundOf(phoneme).example} · ×${count}`}
-                  </AppText>
-                </View>
-              ))}
-            </View>
-          )}
-        </Card>
-      </Screen>
-    );
+    // The child just hears that they finished; the results are for grown-ups (parent zone).
+    return <TestFinished title={t('assess_title')} color={ACCENT} overlay={tracker} />;
   }
 
   return (
@@ -210,7 +141,9 @@ export default function SpeechTest() {
 
         {flash !== null ? (
           <FeedbackBanner kind={flash ? 'correct' : 'tryAgain'} text={t(flash ? 'praise_1' : 'encourage_2')} />
-        ) : auto ? (
+        ) : !auto ? (
+          <RecordCheck key={word} color={ACCENT} />
+        ) : (
           <MicButton
             label={t('phonic_tap_mic')}
             listeningLabel={t('phonic_listening')}
@@ -220,7 +153,7 @@ export default function SpeechTest() {
             message={message}
             onPress={() => void listen()}
           />
-        ) : null}
+        )}
       </View>
     </Screen>
   );

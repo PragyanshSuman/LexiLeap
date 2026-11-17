@@ -15,8 +15,7 @@ import { useFeedback } from '@/services/feedback';
 import { useActiveProfile, useAppStore, useProgress } from '@/store/appStore';
 import { useTheme } from '@/theme/useTheme';
 import { AppText } from '@/ui/AppText';
-import { IconButton } from '@/ui/Button';
-import { goBackOr } from '@/ui/Header';
+import { BACK_BUTTON, BackButton } from '@/ui/BackButton';
 import { FadeInUp, PressableScale } from '@/ui/motion';
 
 const NODE_SIZE = 64;
@@ -88,7 +87,7 @@ export default function LearningPath() {
       <SafeAreaView style={styles.flex}>
         <FadeInUp>
           <View style={styles.header}>
-            <IconButton icon="chevron-back" label={t('go_back')} onPress={() => goBackOr('/home')} color="#FFFFFF" background="rgba(255,255,255,0.12)" />
+            <BackButton onDark fallback="/home" />
             <View style={styles.flex}>
               <AppText variant="heading" weight="bold" color="#FFFFFF" accessibilityRole="header">
                 {t('path_title')}
@@ -302,7 +301,8 @@ function Gem({ node, status, best, color, width, isToday, pulse, onPress }: GemP
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12, width: '100%', maxWidth: 752, alignSelf: 'center' },
+  // Full width, with the back button at the standard spot (BACK_BUTTON).
+  header: { flexDirection: 'row', alignItems: 'flex-start', paddingLeft: BACK_BUTTON.left, paddingRight: 16, paddingTop: BACK_BUTTON.top, paddingBottom: 12, gap: 12, width: '100%' },
   xpRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   levelBadge: { backgroundColor: '#F59E0B', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   xpBar: { flex: 1, height: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden' },

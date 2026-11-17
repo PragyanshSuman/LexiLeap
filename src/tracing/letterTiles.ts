@@ -1,0 +1,31 @@
+import type { ImageSourcePropType } from 'react-native';
+
+/** The original's picture tile for each capital letter. */
+export const LETTER_TILES: Record<string, ImageSourcePropType> = {
+  A: require('../../assets/images/tracing/letters/A.png'),
+  B: require('../../assets/images/tracing/letters/B.png'),
+  C: require('../../assets/images/tracing/letters/C.png'),
+  D: require('../../assets/images/tracing/letters/D.png'),
+  E: require('../../assets/images/tracing/letters/E.png'),
+  F: require('../../assets/images/tracing/letters/F.png'),
+  G: require('../../assets/images/tracing/letters/G.png'),
+  H: require('../../assets/images/tracing/letters/H.png'),
+  I: require('../../assets/images/tracing/letters/I.png'),
+  J: require('../../assets/images/tracing/letters/J.png'),
+  K: require('../../assets/images/tracing/letters/K.png'),
+  L: require('../../assets/images/tracing/letters/L.png'),
+  M: require('../../assets/images/tracing/letters/M.png'),
+  N: require('../../assets/images/tracing/letters/N.png'),
+  O: require('../../assets/images/tracing/letters/O.png'),
+  P: require('../../assets/images/tracing/letters/P.png'),
+  Q: require('../../assets/images/tracing/letters/Q.png'),
+  R: require('../../assets/images/tracing/letters/R.png'),
+  S: require('../../assets/images/tracing/letters/S.png'),
+  T: require('../../assets/images/tracing/letters/T.png'),
+  U: require('../../assets/images/tracing/letters/U.png'),
+  V: require('../../assets/images/tracing/letters/V.png'),
+  W: require('../../assets/images/tracing/letters/W.png'),
+  X: require('../../assets/images/tracing/letters/X.png'),
+  Y: require('../../assets/images/tracing/letters/Y.png'),
+  Z: require('../../assets/images/tracing/letters/Z.png'),
+};

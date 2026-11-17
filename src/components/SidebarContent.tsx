@@ -16,7 +16,6 @@ const NAV: { icon: string; label: TranslationKey; href: string }[] = [
   { icon: '🧭', label: 'nav_path', href: '/path' },
   { icon: '🎮', label: 'nav_all_activities', href: '/play' },
   { icon: '🏆', label: 'nav_rewards', href: '/rewards' },
-  { icon: '📄', label: 'journey_title', href: '/journey' },
   { icon: '👓', label: 'nav_reading', href: '/comfort' },
   { icon: '🔒', label: 'nav_parent', href: '/parent-gate' },
 ];

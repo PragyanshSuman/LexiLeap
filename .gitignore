@@ -42,3 +42,7 @@ yarn-error.*
 
 # training output (scripts/train-handwriting-student.py)
 scripts/out/
+
+# Python caches
+__pycache__/
+*.pyc

@@ -2,6 +2,8 @@ import { Camera } from 'expo-camera';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Alert, TextInput, View } from 'react-native';
+import { useFocusMode } from '@/components/FocusTracker';
+import { MISSES_BEFORE_BREAK } from '@/engine/adaptive';
 import { ProfileForm } from '@/components/ProfileForm';
 import { isFaceDetectionAvailable } from '@/services/faceDetection';
 import { useAppStore, useProfile } from '@/store/appStore';
@@ -28,6 +30,7 @@ export default function ChildSettings() {
   const clearFocusSamples = useAppStore((s) => s.clearFocusSamples);
   const progressFocusCount = useAppStore((s) => (id ? (s.progress[id]?.focus.length ?? 0) : 0));
   const [newPassword, setNewPassword] = useState('');
+  const focusMode = useFocusMode(profile?.prefs.focusHelper);
 
   // New children are created through the Register screen.
   if (isNew) return <Redirect href={{ pathname: '/register', params: { from: 'parent' } }} />;
@@ -142,25 +145,63 @@ export default function ChildSettings() {
           format={(v) => `${v} activities`}
         />
       </SettingRow>
+      <SettingRow
+        title="Struggle sensitivity"
+        description={`How quickly the app steps in when ${profile.name} struggles: after this many misses in a row it offers a calm break and an easier level.`}
+      >
+        <ChoiceChips
+          accessibilityLabel="Struggle sensitivity"
+          value={profile.prefs.struggleSensitivity}
+          onChange={(struggleSensitivity) => updatePrefs(profile.id, { struggleSensitivity })}
+          options={[
+            { value: 'gentle', label: `Gentle (${MISSES_BEFORE_BREAK.gentle})` },
+            { value: 'balanced', label: `Balanced (${MISSES_BEFORE_BREAK.balanced})` },
+            { value: 'quick', label: `Quick (${MISSES_BEFORE_BREAK.quick})` },
+          ]}
+        />
+      </SettingRow>
+      <SettingRow
+        title="Highest level"
+        description="Activities move up a level as they get easy. Cap it here if a level is too hard for now; Learning Path goals count at this level."
+      >
+        <ChoiceChips
+          accessibilityLabel="Highest level"
+          value={profile.prefs.maxLevel}
+          onChange={(maxLevel) => updatePrefs(profile.id, { maxLevel })}
+          options={[
+            { value: 1, label: 'Level 1' },
+            { value: 2, label: 'Level 2' },
+            { value: 3, label: 'Level 3 (no limit)' },
+          ]}
+        />
+      </SettingRow>
       <AppText variant="caption" muted>
         Reading settings (font, colours, overlay and ruler) are in the Reading tab of {profile.name}&apos;s app.
       </AppText>
 
       <SectionTitle>Focus helper</SectionTitle>
       <ToggleRow
-        title="Notice tiredness and distraction (camera)"
-        description={`During activities, the front camera takes a small photo every 5 seconds. The face is checked on this device and the photo is deleted straight away; only "focused / tired / looking away" and a focus score are saved. If ${profile.name} looks tired for a while, the app suggests a change. An eye badge shows when it's on.`}
+        title="Notice tiredness, distraction and frustration"
+        description={`During activities, the front camera takes a small photo every 5 seconds. The face is checked on this device (where ${profile.name} is looking, tired eyes, and the original app's 7-expression model: happy, neutral, surprised, frustrated, sad, worried) and the photo is deleted straight away; only the expression and a focus score are saved. When the face isn't in view, or the camera can't be used, readings come from touch and speech activity instead. If ${profile.name} looks tired or stops for a while, the app suggests a change. A badge shows when it's on (👁 camera, ✋ touch).`}
         value={profile.prefs.focusHelper}
         onChange={async (focusHelper) => {
           if (!focusHelper) return updatePrefs(profile.id, { focusHelper });
-          if (!isFaceDetectionAvailable()) {
-            return Alert.alert('Not available here', 'The Focus helper needs the full LexiLeap app (a development or store build). It does not work in Expo Go.');
-          }
           const { granted } = await Camera.requestCameraPermissionsAsync();
-          if (granted) updatePrefs(profile.id, { focusHelper });
-          else Alert.alert('Camera not allowed', 'Allow camera access for LexiLeap in Settings to use the Focus helper.');
+          updatePrefs(profile.id, { focusHelper });
+          if (!granted) {
+            Alert.alert('Camera not allowed', 'The Focus helper will use touch and speech activity instead. Allow camera access for LexiLeap in Settings to add camera readings.');
+          }
         }}
       />
+      {focusMode.kind !== 'off' ? (
+        <AppText variant="caption" muted>
+          {focusMode.kind === 'camera'
+            ? isFaceDetectionAvailable()
+              ? '👁 Working with the camera (ML Kit face detection and the expression model).'
+              : '👁 Working with the camera (face detection and the expression model run in the app, e.g. in Expo Go; tiredness from eye openness needs the full app).'
+            : '✋ Touch mode: camera access is off. Allow it for LexiLeap in Settings for camera readings.'}
+        </AppText>
+      ) : null}
       <Button
         label="Delete focus readings"
         icon="trash-outline"

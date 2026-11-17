@@ -21,8 +21,17 @@ jest.mock('expo-haptics', () => ({
 }));
 
 jest.mock('expo-audio', () => ({
-  createAudioPlayer: jest.fn(() => ({ play: jest.fn(), seekTo: jest.fn(() => Promise.resolve()), volume: 1 })),
+  createAudioPlayer: jest.fn(() => ({ play: jest.fn(), seekTo: jest.fn(() => Promise.resolve()), remove: jest.fn(), volume: 1 })),
   setAudioModeAsync: jest.fn(() => Promise.resolve()),
+  RecordingPresets: { HIGH_QUALITY: {} },
+  requestRecordingPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
+  // A recorder that "records" instantly to a fixed file.
+  useAudioRecorder: () => ({
+    uri: 'file:///recording.m4a',
+    prepareToRecordAsync: jest.fn(() => Promise.resolve()),
+    record: jest.fn(),
+    stop: jest.fn(() => Promise.resolve()),
+  }),
 }));
 
 // Icon fonts load through the native asset system; render the icon name as text instead.

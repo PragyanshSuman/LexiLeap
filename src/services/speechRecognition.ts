@@ -1,6 +1,7 @@
 import { requireOptionalNativeModule } from 'expo';
 import { Platform } from 'react-native';
 import type { ExpoSpeechRecognitionErrorCode } from 'expo-speech-recognition';
+import { markInteraction } from './interaction';
 
 type RecognitionModule = typeof import('expo-speech-recognition').ExpoSpeechRecognitionModule;
 
@@ -59,6 +60,14 @@ function toListenError(code: ExpoSpeechRecognitionErrorCode): ListenError {
   }
 }
 
+function supportsOnDevice(mod: RecognitionModule): boolean {
+  try {
+    return mod.supportsOnDeviceRecognition();
+  } catch {
+    return false;
+  }
+}
+
 /** Listens for one word. Returns a function that cancels listening. */
 export async function listenForWord(word: string, handlers: ListenHandlers): Promise<() => void> {
   const mod = getModule();
@@ -90,7 +99,11 @@ export async function listenForWord(word: string, handlers: ListenHandlers): Pro
     mod.addListener('start', () => handlers.onStart?.()),
     mod.addListener('result', (event) => {
       const transcripts = event.results.map((r) => r.transcript.trim()).filter(Boolean);
-      if (transcripts.length) heard = transcripts;
+      if (transcripts.length) {
+        heard = transcripts;
+        // Speaking to the app counts as being busy with it (the Focus helper's fallback signal).
+        markInteraction();
+      }
       if (event.isFinal && heard.length) settle(() => handlers.onResult(heard));
     }),
     mod.addListener('error', (event) => {
@@ -109,8 +122,10 @@ export async function listenForWord(word: string, handlers: ListenHandlers): Pro
       maxAlternatives: 5,
       continuous: false,
       contextualStrings: [word],
-      // Allow cloud recognition: on-device models are often missing on kids' devices.
-      requiresOnDeviceRecognition: false,
+      // On the device whenever it can (offline, private, free); otherwise the platform's own service.
+      requiresOnDeviceRecognition: supportsOnDevice(mod),
+      // Short single-word answers.
+      iosTaskHint: 'confirmation',
       androidIntentOptions: { EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS: 1500 },
     });
   } catch {

@@ -7,6 +7,7 @@ import { buildDailyPlan } from '@/engine/plan';
 import { applySession, emptyProgress, HISTORY_DAYS, pruneHistory } from '@/engine/progress';
 import type { FocusSample } from '@/engine/focus';
 import type { Assessment, LetterAttempt, Mood, ProgressState, SessionOutcome, SessionResult, SpeechCheck } from '@/engine/types';
+import type { SessionFeatureSummary } from '@/writing/types';
 import { addDays, dayKey, type DayKey } from '@/lib/date';
 import type { Language } from '@/i18n';
 import { hashPin, newSalt } from '@/services/pin';
@@ -50,6 +51,10 @@ interface AppState {
   saveAssessment: (profileId: string, assessment: Assessment) => void;
   logLetterAttempt: (profileId: string, attempt: LetterAttempt) => void;
   logFocusSample: (profileId: string, sample: FocusSample) => void;
+  /** Saves a Letter Mastery report, and the letter as a writing attempt for the parent reports. */
+  logMastery: (profileId: string, report: SessionFeatureSummary, attempt: LetterAttempt) => void;
+  /** Adds a rhyme the child said to their Voice Vault. Returns true if it was new. */
+  addToRhymeVault: (profileId: string, word: string, rhyme: string) => boolean;
   clearFocusSamples: (profileId: string) => void;
 }
 
@@ -59,6 +64,7 @@ const MAX_ASSESSMENTS = 30;
 const MAX_LETTER_ATTEMPTS = 300;
 /** About 4 hours of activity at one reading every 5 seconds. */
 const MAX_FOCUS_SAMPLES = 3000;
+const MAX_MASTERY_REPORTS = 200;
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -164,10 +170,12 @@ export const useAppStore = create<AppState>()(
 
         recordSession: (profileId, result) => {
           const day = dayKey();
+          const profile = get().profiles.find((p) => p.id === profileId);
           const { state, outcome } = applySession(progressOf(get(), profileId), result, {
             id: Crypto.randomUUID(),
             day,
             nowIso: new Date().toISOString(),
+            maxLevel: profile?.prefs.maxLevel,
           });
           updateProgress(profileId, () => state);
           return outcome;
@@ -221,6 +229,22 @@ export const useAppStore = create<AppState>()(
 
         clearFocusSamples: (profileId) => updateProgress(profileId, (p) => ({ ...p, focus: [] })),
 
+        logMastery: (profileId, report, attempt) =>
+          updateProgress(profileId, (p) => ({
+            ...p,
+            mastery: [...(p.mastery ?? []), report].slice(-MAX_MASTERY_REPORTS),
+            writing: [...(p.writing ?? []), attempt].slice(-MAX_LETTER_ATTEMPTS),
+          })),
+
+        addToRhymeVault: (profileId, word, rhyme) => {
+          const key = word.toLowerCase();
+          const said = rhyme.toLowerCase();
+          const existing = progressOf(get(), profileId).rhymeVault?.[key] ?? [];
+          if (existing.includes(said)) return false;
+          updateProgress(profileId, (p) => ({ ...p, rhymeVault: { ...(p.rhymeVault ?? {}), [key]: [...existing, said] } }));
+          return true;
+        },
+
         markTourSeen: (profileId, tourId) =>
           updateProgress(profileId, (p) => ({ ...p, toursSeen: { ...p.toursSeen, [tourId]: true } })),
       };
@@ -252,10 +276,6 @@ export function useHydrated(): boolean {
     (onChange) => useAppStore.persist.onFinishHydration(onChange),
     () => useAppStore.persist.hasHydrated(),
   );
-}
-
-export function useIsSetUp(): boolean {
-  return useAppStore((s) => s.parent !== null && s.profiles.length > 0);
 }
 
 export function useActiveProfile(): Profile | null {

@@ -7,6 +7,7 @@ import { DT } from '@/theme/dyslexiaTheme';
 import { useTheme } from '@/theme/useTheme';
 import { AppText } from '@/ui/AppText';
 import { Button } from '@/ui/Button';
+import { ALL_ORIENTATIONS } from '@/ui/orientations';
 
 export interface TourStep {
   title: TranslationKey;
@@ -64,7 +65,7 @@ export function FeatureTour({ visible, steps, onClose }: { visible: boolean; ste
 
   if (!visible || !step) return null;
   return (
-    <Modal transparent visible animationType="fade" statusBarTranslucent onRequestClose={finish}>
+    <Modal transparent visible animationType="fade" statusBarTranslucent onRequestClose={finish} supportedOrientations={ALL_ORIENTATIONS}>
       <View style={styles.backdrop}>
         <Animated.View style={[styles.card, { backgroundColor: colors.surface, opacity: fade }]} accessibilityViewIsModal>
           <View style={styles.dots}>

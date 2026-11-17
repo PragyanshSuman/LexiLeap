@@ -33,7 +33,8 @@ export function UsageTracker() {
   const continuous = useRef(0);
   const backgroundedAt = useRef<number | null>(null);
   const counting = !!profileId && isChildRoute(pathname);
-  const inActivity = pathname.startsWith('/activity');
+  // Never interrupt a child mid-task: activities, and the tracing and writing canvases.
+  const inActivity = ['/activity', '/tracing/trace', '/mastery/write'].some((prefix) => pathname.startsWith(prefix));
 
   useEffect(() => {
     if (!counting || !profileId) return;

@@ -26,9 +26,36 @@ describe('design rules', () => {
 
   it('takes text colours from the theme in child screens (so every theme, including dark, works)', () => {
     // Sign-in screens run before a child is chosen, always in the classic theme.
-    const allowed = ['app/login.tsx', 'app/register.tsx', 'components/AuthShell.tsx'];
+    const allowed = [
+      'app/login.tsx',
+      'app/register.tsx',
+      'components/AuthShell.tsx',
+      // Letter tracing and Letter Mastery recreate the original app's screens exactly (see docs/ROADMAP.md).
+      // They keep the original light surfaces in every theme, so their fixed text colours stay readable.
+      'app/tracing/index.tsx',
+      'app/tracing/letters.tsx',
+      'app/mastery/index.tsx',
+      'app/parent/mastery/[childId].tsx',
+      'app/parent/mastery/session/[id].tsx',
+      'writing/MasteryMeasures.tsx',
+      'app/mastery/write/[letter].tsx',
+      'writing/Charts.tsx',
+      'writing/LetterStrip.tsx',
+    ];
     const offenders = files.filter((f) => !allowed.includes(f.path) && /DT\.text\./.test(f.text)).map((f) => f.path);
     expect(offenders).toEqual([]);
+  });
+
+  it('uses the one standard back button, at the same spot, on every screen', () => {
+    // No screen draws its own back arrow or close button; they all use ui/BackButton.
+    const offenders = files.filter((f) => f.path !== 'ui/BackButton.tsx' && /<IconButton[^>]*icon="(chevron-back|close)"|SeriBackButton/.test(f.text)).map((f) => f.path);
+    expect(offenders).toEqual([]);
+  });
+
+  it("gives the side menu a fixed width (a percentage pushes a tablet's whole screen away)", () => {
+    const layout = files.find((f) => f.path === 'app/(child)/_layout.tsx')!;
+    expect(layout.text).not.toMatch(/drawerStyle:\s*\{[^}]*width:\s*'\d+%'/);
+    expect(layout.text).toMatch(/drawerStyle:\s*\{\s*width:\s*drawerWidth/);
   });
 
   it('builds buttons only with the shared Button (no one-off gradients)', () => {

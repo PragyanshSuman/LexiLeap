@@ -1,18 +1,18 @@
 import * as Crypto from 'expo-crypto';
-import { Redirect, router } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { FocusTracker } from '@/components/FocusTracker';
+import { TestFinished } from '@/components/TestFinished';
 import { InkThumbnail, WritingPad } from '@/components/WritingPad';
-import { pickSpellingWords, scoreSpelling, summarizeSpelling, type SpellingFlag } from '@/engine/spelling';
-import type { SpellingAssessment, SpellingError } from '@/engine/types';
+import { pickSpellingWords, scoreSpelling } from '@/engine/spelling';
+import type { SpellingAssessment } from '@/engine/types';
 import type { InkStroke } from '@/handwriting/raster';
 import { readLetter, type LetterGuess } from '@/handwriting/recognize';
-import { useT, type TranslationKey } from '@/i18n';
+import { useT } from '@/i18n';
 import { defaultRng } from '@/lib/random';
 import { useFeedback } from '@/services/feedback';
 import { useHandwritingModel } from '@/services/handwritingModel';
-import { shareAssessmentReport } from '@/services/report';
 import { useActiveProfile, useAppStore } from '@/store/appStore';
 import { accentOn } from '@/theme/color';
 import { useTheme } from '@/theme/useTheme';
@@ -20,7 +20,7 @@ import { AppText } from '@/ui/AppText';
 import { Button } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { ProgressBar } from '@/ui/controls';
-import { goBackOr, Header } from '@/ui/Header';
+import { Header } from '@/ui/Header';
 import { FeedbackBanner, ScreenIntro } from '@/ui/Feedback';
 import { PopIn } from '@/ui/motion';
 import { Screen } from '@/ui/Screen';
@@ -44,12 +44,6 @@ const EXTRA_LETTERS = 4;
 /** The Write Test tile colour on Home. */
 const ACCENT = '#5B21B6';
 
-const FLAG_KEY: Record<SpellingFlag, TranslationKey> = {
-  'on-track': 'spell_flag_on_track',
-  monitor: 'spell_flag_monitor',
-  'high-risk': 'spell_flag_high_risk',
-};
-const ERROR_ORDER: SpellingError[] = ['reversal', 'transposition', 'omission', 'insertion', 'substitution', 'blank'];
 
 /** The original "Write Test": hear a word, write it on the canvas, and get a spelling report. */
 export default function SpellingTest() {
@@ -73,7 +67,6 @@ export default function SpellingTest() {
   const nextId = useRef(0);
   const [corrected, setCorrected] = useState(false);
   const [saved, setSaved] = useState<SpellingAssessment | null>(null);
-  const [sharing, setSharing] = useState(false);
   const [padSize, setPadSize] = useState(0);
 
   if (!profile) return <Redirect href="/login" />;
@@ -139,7 +132,6 @@ export default function SpellingTest() {
 
   const tracker = <FocusTracker feature="spelling-test" />;
   // Children see this screen too, so even "needs support" is amber rather than alarming red.
-  const flagColour: Record<SpellingFlag, string> = { 'on-track': colors.success, monitor: colors.primary, 'high-risk': colors.warning };
 
   if (phase === 'intro') {
     return (
@@ -216,73 +208,10 @@ export default function SpellingTest() {
   }
 
   if (phase === 'done' && saved) {
-    const summary = summarizeSpelling(saved.items);
-    const patterns = ERROR_ORDER.filter((e) => summary.errorCounts[e] > 0);
-    return (
-      <Screen
-        scroll
-        header={<Header title={t('spell_title')} onBack={() => goBackOr('/home')} />}
-        footer={
-          <View style={styles.row}>
-            <Button label={t('done')} icon="home" variant="secondary" color={ACCENT} onPress={() => router.dismissTo('/home')} style={styles.flex} />
-            <Button
-              label={t('assess_share')}
-              icon="document-text"
-              color={ACCENT}
-              loading={sharing}
-              style={styles.flex}
-              onPress={async () => {
-                setSharing(true);
-                try {
-                  await shareAssessmentReport(profile, saved);
-                } catch (e) {
-                  Alert.alert(t('spell_title'), e instanceof Error ? e.message : t('something_wrong'));
-                } finally {
-                  setSharing(false);
-                }
-              }}
-            />
-          </View>
-        }
-        overlay={tracker}
-      >
-        <View style={styles.center}>
-          <AppText size={64} fixed center>
-            🏅
-          </AppText>
-          <AppText variant="title" center accessibilityRole="header">
-            {t('assess_done_title')}
-          </AppText>
-          <AppText variant="heading" center color={accentText}>
-            {t('assess_words', { a: summary.wordsRight, b: summary.wordsTotal })}
-          </AppText>
-          <AppText variant="label" center muted>
-            {t('spell_accuracy', { n: Math.round(summary.accuracy * 100) })}
-          </AppText>
-          <View style={[styles.flag, { borderColor: flagColour[summary.flag] }]}>
-            <AppText variant="label" weight="bold" color={flagColour[summary.flag]}>
-              {t(FLAG_KEY[summary.flag])}
-            </AppText>
-          </View>
-        </View>
-        <Card style={styles.patterns}>
-          <AppText variant="label" weight="bold">
-            {t('spell_patterns')}
-          </AppText>
-          {patterns.length === 0 ? (
-            <AppText muted>{t('spell_no_errors')}</AppText>
-          ) : (
-            patterns.map((e) => (
-              <View key={e} style={styles.patternRow}>
-                <AppText muted>{t(`spell_err_${e}`)}</AppText>
-                <AppText weight="bold">{`×${summary.errorCounts[e]}`}</AppText>
-              </View>
-            ))
-          )}
-        </Card>
-      </Screen>
-    );
+    // The child just hears that they finished; the results are for grown-ups (parent zone).
+    return <TestFinished title={t('spell_title')} color={ACCENT} overlay={tracker} />;
   }
+
 
   const maxLetters = word.length + EXTRA_LETTERS;
   return (

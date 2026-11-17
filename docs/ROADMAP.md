@@ -14,6 +14,7 @@ Python server). Work proceeds in phases. Each phase must pass `npm run typecheck
 | 5 | Speech | Phonic Check studio with on-device pronunciation scoring, Clinical speech assessment + medical-style report, Magic Words phoneme studio (CMU dictionary) | Done |
 | 6 | Writing | Write & Score letter challenge and the Write Test (listen & write, letter by letter, grown-up review, spelling report) with on-device handwriting recognition from the original 62-class EMNIST model, including mirror/upside-down reversal checks (pure-TypeScript inference, so it also runs in Expo Go) | Done (about 0.5–2 s per letter on a Xiaomi Pad 6) |
 | 7 | Camera | Focus helper: opt-in, on-device attention and expression signals (development build: camera + ML Kit face detection; graceful fallback in Expo Go) feeding the AI Roadmap; Mood Track and My Report screens; focus in the PDF report | Done (to confirm on a device with a development build) |
+| 8 | Original tracing & writing, Rhyme modes, iPad | Letter tracing and Letter Mastery rebuilt to match the original screens exactly (dashboard, picture-tile menu, guided tracer with tiger and rewards, A–Z strips; writing board, results, Session Report, Progress Dashboard) on real data; Rhyme Train and Voice Vault built as full activities; iPad: every modal supports all orientations, tracing and writing scale to tablet size | Done (to confirm on an iPad with a development build) |
 
 Notes
 - Camera tracking needs native modules, so it only works in a development build, not Expo Go.
@@ -35,3 +36,19 @@ Notes
   signals (head angle, eye openness, smile) and keeps no photos.
 - Original assets (letter images, bee/honey artwork, CMU dictionary, EMNIST model) are reused from
   `../UnifiedLearningApp` where they exist.
+- Phase 8 (Nov 17, 2026): the rest of the app keeps LexiLeap's own design; only letter tracing and letter writing
+  copy the original screens. Things the original left unfinished are finished here: its Progress Dashboard and
+  letter grid showed fixed example numbers, its Session Report showed "—" for most measures, its tracer scored every
+  finished letter 100%, its writing board drew ink 80 pt above the finger, and its Rhyme Train and Voice Vault were
+  "coming soon" cards. Tracing and writing keep the original light look in every theme by design.
+- Phase 9 (Nov 17, 2026): the Focus helper now reads expressions like the original (its 7-expression FER model, run
+  on the device instead of the server) and no longer counts "no face in view" as zero focus. When the camera can't
+  see the child, or can't be used, readings come from touch and speech activity, labelled as such everywhere.
+  The original's last-resort voice-emotion model (wav2vec2, ~300M parameters) is too large for a phone; touch and
+  speech activity replace it. Expression accuracy on children still needs checking on a device.
+- Phase 10 (Nov 17, 2026): fixes from testing on an iPad in Expo Go. The Write & Score canvas had zero width (its
+  measuring box sat in a centring container) and never drew. All spoken answers are now scored phoneme by phoneme
+  with one shared scorer (CMU dictionary alignment, homophones accepted), using the in-app microphone and the
+  device's on-device recogniser; Expo Go has no speech engine, so there a grown-up marks answers. Faces are now also found in JavaScript with OpenCV's Haar cascade (as the
+  original's `fer` package does), so expression reading works in Expo Go and when ML Kit fails. Reports gained
+  Letter Mastery analysis, the clinical tests list, expression breakdowns and a separate handwriting PDF.

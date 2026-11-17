@@ -1,11 +1,17 @@
+import type { Emotion, EmotionScores } from '@/emotion/model';
 import type { DayKey } from '@/lib/date';
 import { ACTIVITIES } from './catalog';
 import type { ActivityId } from './types';
 
 /**
  * Focus helper: on-device signals from the front camera (opt-in, per child), replacing the original
- * server-side emotion tracker. A face detector reports head angle, eye openness and smiling; this
- * module turns those into an expression and a 0–100 concentration score. No photo is ever kept.
+ * server-side emotion tracker. A face detector reports head angle, eye openness and smiling, and the
+ * original 7-expression model (angry, disgust, fear, happy, sad, surprise, neutral) reads the face;
+ * this module turns those into an expression and a 0–100 concentration score. No photo is ever kept.
+ *
+ * Fallbacks, best first: camera with expressions → camera with attention only (if the expression
+ * model can't run) → touch activity (when the face isn't in view, the camera is off or not allowed,
+ * or the app runs without the face detector, e.g. Expo Go). Each reading records its source.
  */
 
 /** What the face detector saw in one photo, or null when no face was found. */
@@ -18,9 +24,16 @@ export interface FaceReading {
   smiling?: number;
   leftEyeOpen?: number;
   rightEyeOpen?: number;
+  /** Where the face is in the photo, in photo pixels (used to read the expression). */
+  box?: { x: number; y: number; width: number; height: number };
 }
 
-export type Expression = 'happy' | 'focused' | 'tired' | 'looking-away' | 'away';
+/**
+ * camera: happy, focused, surprised, frustrated, sad, worried, tired, looking-away.
+ * touch fallback: active (busy with the app but not seen), away (no face and no activity).
+ */
+export type Expression = 'happy' | 'focused' | 'surprised' | 'frustrated' | 'sad' | 'worried' | 'tired' | 'looking-away' | 'active' | 'away';
+export type FocusSource = 'camera' | 'touch';
 
 /** Where in the app a sample was taken: an activity id or a studio such as "writing". */
 export type FocusFeature = ActivityId | Studio;
@@ -48,7 +61,13 @@ export interface FocusSample {
   expression: Expression;
   /** 0–100. */
   concentration: number;
+  /** Where the reading came from; missing in readings saved before fallbacks existed (camera). */
+  source?: FocusSource;
+  /** The expression model's strongest emotion, when it ran. */
+  emotion?: Emotion;
 }
+
+export const sourceOf = (sample: Pick<FocusSample, 'source'>): FocusSource => sample.source ?? 'camera';
 
 /** Head turned further than this counts as looking away from the screen. */
 const LOOK_AWAY_DEGREES = 30;
@@ -62,19 +81,64 @@ function facing(reading: FaceReading): number {
   return Math.max(0, Math.min(1, 1 - (angle - 10) / (LOOK_AWAY_DEGREES - 10)));
 }
 
+/** The emotions behind each camera expression. */
+const EMOTION_EXPRESSION: Record<Emotion, Expression> = {
+  happy: 'happy',
+  neutral: 'focused',
+  surprise: 'surprised',
+  angry: 'frustrated',
+  disgust: 'frustrated',
+  sad: 'sad',
+  fear: 'worried',
+};
+/** The expression model has to be at least this sure before its emotion is used. */
+const EMOTION_CONFIDENCE = 0.4;
+
 /**
- * The original "positive engagement minus half the distraction" score, from the camera's signals:
- * engagement is facing the screen with eyes open; distraction is turning away or eyes closing.
+ * The original server's emotional "concentration index": neutral and happy faces count as engaged,
+ * surprise half, and sad, angry, fearful or disgusted faces subtract. 0–100.
  */
-export function analyzeFace(reading: FaceReading | null): { expression: Expression; concentration: number } {
+export function emotionIndex(e: EmotionScores): number {
+  const positive = e.neutral * 100 + e.happy * 70 + e.surprise * 50;
+  const negative = e.sad * 80 + e.angry * 100 + e.fear * 100 + e.disgust * 100;
+  return Math.max(0, Math.min(100, positive - negative * 0.5));
+}
+
+export const dominantEmotion = (e: EmotionScores): Emotion => (Object.entries(e) as [Emotion, number][]).sort((a, b) => b[1] - a[1])[0][0];
+
+/**
+ * A camera reading: attention ("positive engagement minus half the distraction", from facing the
+ * screen with eyes open) adjusted by the expression model when it ran: a neutral face keeps the full
+ * score, a frustrated or upset one halves it. Looking away and tired eyes come first; otherwise the
+ * expression model's emotion (when sure enough), or the face detector's smile.
+ */
+export function analyzeFace(reading: FaceReading | null, emotions?: EmotionScores | null): { expression: Expression; concentration: number; emotion?: Emotion } {
   if (!reading) return { expression: 'away', concentration: 0 };
   const eyes = reading.leftEyeOpen !== undefined && reading.rightEyeOpen !== undefined ? (reading.leftEyeOpen + reading.rightEyeOpen) / 2 : 1;
   const engagement = facing(reading) * Math.min(1, eyes / 0.7);
   const distraction = 1 - engagement;
-  const concentration = Math.round(Math.max(0, engagement - distraction * 0.5) * 100);
-  const expression: Expression =
-    facing(reading) === 0 ? 'looking-away' : eyes < TIRED_EYES ? 'tired' : (reading.smiling ?? 0) >= HAPPY_SMILE ? 'happy' : 'focused';
-  return { expression, concentration };
+  const attention = Math.max(0, engagement - distraction * 0.5) * 100;
+  const emotion = emotions ? dominantEmotion(emotions) : undefined;
+  const concentration = Math.round(emotions ? attention * (0.5 + emotionIndex(emotions) / 200) : attention);
+  let expression: Expression;
+  if (facing(reading) === 0) expression = 'looking-away';
+  else if (eyes < TIRED_EYES) expression = 'tired';
+  else if (emotions && emotion && emotions[emotion] >= EMOTION_CONFIDENCE) expression = EMOTION_EXPRESSION[emotion];
+  else expression = (reading.smiling ?? 0) >= HAPPY_SMILE ? 'happy' : 'focused';
+  return emotion ? { expression, concentration, emotion } : { expression, concentration };
+}
+
+/** Touches or speech this recent count as being busy with the app. */
+export const ACTIVE_WITHIN_MS = 20_000;
+/**
+ * Touch-activity readings can't see attention, so being busy with the app counts as moderately
+ * focused, and no activity at all as away. Clearly labelled as touch readings in every report.
+ */
+export const ACTIVE_SCORE = 65;
+
+/** A reading from touch and speech activity, when the camera can't see the child. */
+export function analyzeActivity(msSinceInteraction: number): { expression: Expression; concentration: number } {
+  return msSinceInteraction <= ACTIVE_WITHIN_MS ? { expression: 'active', concentration: ACTIVE_SCORE } : { expression: 'away', concentration: 0 };
 }
 
 /** Concentration below this, several times in a row, suggests the child needs a break. */
@@ -103,6 +167,8 @@ export interface FocusSummary {
   expressions: Partial<Record<Expression, number>>;
   /** Most frequent expression. */
   dominant: Expression;
+  /** Readings from the camera and from touch activity. */
+  sources: Record<FocusSource, number>;
 }
 
 /** Per-feature focus for the Mood Track report, most-used features first. */
@@ -114,7 +180,9 @@ export function summarizeFocus(samples: FocusSample[]): FocusSummary[] {
       const expressions: Partial<Record<Expression, number>> = {};
       for (const s of list) expressions[s.expression] = (expressions[s.expression] ?? 0) + 1;
       const dominant = (Object.entries(expressions) as [Expression, number][]).sort((a, b) => b[1] - a[1])[0][0];
-      return { feature, samples: list.length, concentration: Math.round(list.reduce((sum, s) => sum + s.concentration, 0) / list.length), expressions, dominant };
+      const sources: Record<FocusSource, number> = { camera: 0, touch: 0 };
+      for (const s of list) sources[sourceOf(s)] += 1;
+      return { feature, samples: list.length, concentration: Math.round(list.reduce((sum, s) => sum + s.concentration, 0) / list.length), expressions, dominant, sources };
     })
     .sort((a, b) => b.samples - a.samples);
 }

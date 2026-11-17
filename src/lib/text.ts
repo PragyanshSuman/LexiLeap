@@ -30,10 +30,6 @@ export function normalizeSpeech(text: string): string {
     .trim();
 }
 
-export function capitalize(word: string): string {
-  return word.charAt(0).toUpperCase() + word.slice(1);
-}
-
 export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -41,8 +37,4 @@ export function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-}
-
-export function plural(count: number, one: string, many = `${one}s`): string {
-  return `${count} ${count === 1 ? one : many}`;
 }

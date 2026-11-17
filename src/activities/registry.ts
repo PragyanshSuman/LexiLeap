@@ -4,12 +4,14 @@ import { letterSort } from './letterSort';
 import { memory } from './memory';
 import { oddOneOut } from './oddOneOut';
 import { rhyme } from './rhyme';
+import { rhymeTrain } from './rhymeTrain';
 import { sayIt } from './sayIt';
 import { sightWords } from './sightWords';
 import { soundBoxes } from './soundBoxes';
 import { soundMatch } from './soundMatch';
 import { syllables } from './syllables';
 import { trace } from './trace/TraceRound';
+import { voiceVault } from './voiceVault';
 import type { ActivityDefinition } from './types';
 import { wordBuilder } from './wordBuilder';
 
@@ -23,6 +25,8 @@ export const ACTIVITY_DEFINITIONS: Record<ActivityId, ActivityDefinition<any>> =
   'letter-hunt': letterHunt,
   memory,
   rhyme,
+  'rhyme-train': rhymeTrain,
+  'voice-vault': voiceVault,
   syllables,
   'sound-boxes': soundBoxes,
   'sight-words': sightWords,

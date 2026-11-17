@@ -31,7 +31,7 @@ beforeEach(() => {
 describe('Speech Test', () => {
   it('lets an adult mark every word when the device cannot listen, then saves the result', async () => {
     await render(<SpeechTest />);
-    expect(screen.getByText(/the grown-up marks each word/)).toBeTruthy();
+    expect(screen.getByText(/a grown-up marks each word/)).toBeTruthy();
     await fireEvent.press(screen.getByText('Start the test'));
 
     for (const [i, word] of SPEECH_TEST_WORDS.entries()) {
@@ -39,8 +39,9 @@ describe('Speech Test', () => {
       await fireEvent.press(screen.getByText(i % 4 === 0 ? 'Not quite' : '✓ Said it right'));
     }
 
-    expect(screen.getByText('Test complete!')).toBeTruthy();
-    expect(screen.getByText(`15 of ${SPEECH_TEST_WORDS.length} words right`)).toBeTruthy();
+    // The child sees praise, not scores; the results are in the parent zone.
+    expect(screen.getByText('All done! 🎉')).toBeTruthy();
+    expect(screen.queryByText(`15 of ${SPEECH_TEST_WORDS.length} words right`)).toBeNull();
     const [saved] = useAppStore.getState().progress[profile.id].assessments;
     expect(saved).toMatchObject({ kind: 'speech', method: 'adult' });
     expect(saved.items).toHaveLength(SPEECH_TEST_WORDS.length);

@@ -7,7 +7,10 @@ import { useWordListener } from '@/hooks/useWordListener';
 import { useT } from '@/i18n';
 import { useFeedback } from '@/services/feedback';
 import { cleanWord, usePronunciation } from '@/services/pronunciationDictionary';
-import { useActiveProfile } from '@/store/appStore';
+import { SPEAKING_WORDS } from '@/content/words';
+import type { Level } from '@/engine/types';
+import { defaultRng, sample } from '@/lib/random';
+import { useActiveProfile, useProgress } from '@/store/appStore';
 import { DT } from '@/theme/dyslexiaTheme';
 import { accentOn } from '@/theme/color';
 import { useTheme } from '@/theme/useTheme';
@@ -20,6 +23,8 @@ import { Bob, FadeInUp } from '@/ui/motion';
 import { Screen } from '@/ui/Screen';
 
 const MAX_SPELLS = 12;
+/** Words offered at the child's level. */
+const SUGGESTIONS = 6;
 /** The Magic Words tile colour on Home. */
 const ACCENT = DT.accent.rose;
 
@@ -35,6 +40,10 @@ export default function MagicWords() {
   const [word, setWord] = useState<string | null>(null);
   const [spells, setSpells] = useState<string[]>([]);
   const pronunciation = usePronunciation(word);
+  const progress = useProgress(profile?.id);
+  // The original's "Adaptive Journey": words at the child's reading level, for when they can't type yet.
+  const level = Math.min(progress.activities['say-it']?.level ?? 1, profile?.prefs.maxLevel ?? 3) as Level;
+  const [suggestions, setSuggestions] = useState<string[]>(() => sample(defaultRng, SPEAKING_WORDS[level], SUGGESTIONS));
 
   // Say each new word as soon as its card is ready.
   useEffect(() => {
@@ -80,6 +89,42 @@ export default function MagicWords() {
             />
           ) : null}
         </Card>
+      </FadeInUp>
+
+      <FadeInUp index={1}>
+        <View style={styles.spellsHeader}>
+          <AppText variant="label" weight="bold">
+            {t('magic_suggestions')}
+          </AppText>
+          <Button
+            label={t('magic_another')}
+            icon="shuffle"
+            variant="ghost"
+            compact
+            color={ACCENT}
+            onPress={() => {
+              const next = sample(defaultRng, SPEAKING_WORDS[level], SUGGESTIONS);
+              setSuggestions(next);
+              cast(next[0]);
+            }}
+          />
+        </View>
+        <View style={styles.spellChips}>
+          {suggestions.map((s) => (
+            <Pressable
+              key={s}
+              accessibilityRole="button"
+              accessibilityLabel={s}
+              onPress={() => {
+                feedback.tap();
+                cast(s);
+              }}
+              style={({ pressed }) => [styles.spellChip, { borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.md }, pressed && styles.pressed]}
+            >
+              <AppText variant="label">{s}</AppText>
+            </Pressable>
+          ))}
+        </View>
       </FadeInUp>
 
       <View style={styles.body}>

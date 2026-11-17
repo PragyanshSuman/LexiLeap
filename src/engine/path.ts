@@ -85,6 +85,7 @@ export const PATH_NODES: PathNode[] = [
   node('hear-3', 'hear', 'syllables', 'intro', ['hear-2']),
   node('hear-4', 'hear', 'say-it', 'intro', ['hear-1']),
   node('hear-5', 'hear', 'sound-boxes', 'challenge', ['hear-3', 'hear-4'], { reviewAfterDays: 3 }),
+  node('hear-6', 'hear', 'rhyme-train', 'practice', ['hear-2']),
   // Read & Write
   node('read-1', 'read', 'sight-words', 'intro', ['hear-1']),
   node('read-2', 'read', 'memory', 'intro', ['see-3']),
@@ -97,12 +98,18 @@ export const PATH_NODES: PathNode[] = [
   node('master-3', 'master', 'sound-boxes', 'master', ['hear-5'], { reviewAfterDays: 7 }),
   node('master-4', 'master', 'word-builder', 'master', ['read-5'], { reviewAfterDays: 7 }),
   node('master-5', 'master', 'memory', 'bonus', ['master-1', 'master-4']),
+  node('master-6', 'master', 'voice-vault', 'challenge', ['hear-4', 'hear-6'], { reviewAfterDays: 7 }),
 ];
 
 export const NODE_MAP: Record<string, PathNode> = Object.fromEntries(PATH_NODES.map((n) => [n.id, n]));
 
 export function emptyPath(): PathState {
   return { nodes: {}, xp: 0 };
+}
+
+/** The level a node needs, within a parent's ceiling. */
+export function requiredLevel(node: PathNode, maxLevel: Level = 3): Level {
+  return Math.min(node.minLevel, maxLevel) as Level;
 }
 
 export function nodeXp(node: PathNode): number {
@@ -133,12 +140,14 @@ export function unitNodes(unit: UnitId): PathNode[] {
 export function applyPathSession(
   path: PathState,
   session: Pick<SessionRecord, 'activityId' | 'level' | 'accuracy' | 'day'>,
+  /** A parent's level ceiling: goals above it count at the ceiling, so the path never gets stuck. */
+  maxLevel: Level = 3,
 ): { path: PathState; completed: string[]; xpEarned: number } {
   const candidates = PATH_NODES.filter((n) => n.activityId === session.activityId);
   for (const n of candidates) {
     const status = nodeStatus(path, n, session.day);
     if (status !== 'available' && status !== 'review') continue;
-    if (session.level < n.minLevel || session.accuracy < n.target) continue;
+    if (session.level < requiredLevel(n, maxLevel) || session.accuracy < n.target) continue;
     const previous = path.nodes[n.id];
     const xpEarned = status === 'review' ? REVIEW_XP : nodeXp(n) + Math.round(session.accuracy * 10);
     return {

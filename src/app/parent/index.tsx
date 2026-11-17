@@ -222,10 +222,21 @@ export default function ParentDashboard() {
                 letters.some((l) => l.reversal) ? `, ${letters.filter((l) => l.reversal).length} written reversed` : ''
               }.`}
         </AppText>
+        <Button
+          label="Letter Mastery analysis"
+          icon="analytics-outline"
+          variant="secondary"
+          compact
+          onPress={() => router.push({ pathname: '/parent/mastery/[childId]', params: { childId: profile.id } })}
+        />
       </Card>
 
       <SectionTitle>Wellbeing</SectionTitle>
       <Card style={{ gap: space(3) }}>
+        <View style={styles.between}>
+          <Button label="Focus & mood report" icon="pulse-outline" compact variant="secondary" style={styles.flex} onPress={() => router.push({ pathname: '/parent/focus/[childId]', params: { childId: profile.id } })} />
+          <Button label="Learning report" icon="document-text-outline" compact variant="secondary" style={styles.flex} onPress={() => router.push({ pathname: '/parent/journey/[childId]', params: { childId: profile.id } })} />
+        </View>
         <View style={styles.between}>
           {moodDays.map((d) => {
             const mood = MOODS.find((m) => m.mood === progress.moods[d]);
@@ -316,6 +327,7 @@ function AssessmentRow({ profile, assessment }: { profile: Profile; assessment: 
           {formatDay(dayKey(new Date(assessment.takenAt)))} · {detail}
         </AppText>
       </View>
+      <Button label="Results" icon="eye-outline" compact variant="secondary" onPress={() => router.push({ pathname: '/parent/assessment/[id]', params: { id: assessment.id, childId: profile.id } })} />
       <Button label="PDF" icon="share-outline" compact variant="secondary" loading={sharing} onPress={share} />
     </View>
   );

@@ -3,13 +3,12 @@ import { StyleSheet, View } from 'react-native';
 import { ACTIVITIES } from '@/engine/catalog';
 import { useFeedback } from '@/services/feedback';
 import { restoreAudioMode } from '@/services/sounds';
-import { matchSpokenWord } from '@/services/speechMatch';
+import { scoreSpeech } from '@/services/speechScoring';
 import { isSpeechRecognitionAvailable, listenForWord, type ListenError } from '@/services/speechRecognition';
-import { useTheme } from '@/theme/useTheme';
 import { AppText } from '@/ui/AppText';
-import { Button } from '@/ui/Button';
 import { MicButton, SoundButton } from '@/ui/SpeechControls';
 import { generateSayItRounds, type SayItRound } from './generators';
+import { RecordCheck } from '@/components/RecordCheck';
 import { Picture, Prompt } from './shared';
 import type { ActivityDefinition, RoundProps } from './types';
 import { useT, type TranslationKey } from '@/i18n';
@@ -46,6 +45,15 @@ function SayItRoundView({ round, revealed, disabled, onAnswer, accent }: RoundPr
   };
   useEffect(() => stopListening, []);
 
+  /** Scores what the microphone heard sound by sound (phoneme accuracy, as in the original). */
+  const check = async (transcripts: string[]) => {
+    setStatus('heard');
+    const result = await scoreSpeech(round.word, transcripts);
+    const right = Math.round((result.score ?? 0) * 100);
+    setMessage(result.correct ? t('sayit_sounds_right', { n: right }) : t('sayit_heard_sounds', { word: result.heard ?? '', n: right }));
+    onAnswer(result.correct ? { correct: true, score: result.score ?? 1 } : { correct: false });
+  };
+
   const listen = async () => {
     if (disabled || revealed || status === 'listening') return;
     feedback.stopSpeaking();
@@ -56,10 +64,7 @@ function SayItRoundView({ round, revealed, disabled, onAnswer, accent }: RoundPr
       onResult: (transcripts) => {
         stopListening();
         restoreAudioMode();
-        const { match, heard } = matchSpokenWord(round.word, transcripts);
-        setStatus('heard');
-        if (match === 'none') setMessage(heard ? t('round_heard', { word: heard }) : null);
-        onAnswer(match === 'none' ? { correct: false } : { correct: true, score: match === 'exact' ? 1 : 0.7 });
+        void check(transcripts);
       },
       onError: (error) => {
         stopListening();
@@ -105,49 +110,12 @@ function SayItRoundView({ round, revealed, disabled, onAnswer, accent }: RoundPr
           onPress={listen}
         />
       ) : (
-        <SelfCheck accent={accent} word={round.word} disabled={disabled || revealed} message={message} onAnswer={onAnswer} />
+        <RecordCheck color={accent} disabled={disabled || revealed} onMark={(correct) => onAnswer(correct ? { correct: true, score: 1 } : { correct: false })} />
       )}
     </View>
   );
 }
 
-/**
- * Practice mode for devices without speech recognition (or with the microphone off):
- * the child reads the word aloud, hears it, and says whether theirs matched.
- */
-function SelfCheck({ accent, word, disabled, message, onAnswer }: { accent: string; word: string; disabled: boolean; message: string | null; onAnswer: RoundProps<SayItRound>['onAnswer'] }) {
-  const { space } = useTheme();
-  const { t } = useT();
-  const feedback = useFeedback();
-  const [listened, setListened] = useState(false);
-  return (
-    <View style={{ gap: space(3) }}>
-      {message ? (
-        <AppText variant="caption" muted center>
-          {message}
-        </AppText>
-      ) : null}
-      <AppText center>{t('round_self_check')}</AppText>
-      <Button
-        label={t('round_check')}
-        icon="ear"
-        variant="secondary"
-        color={accent}
-        disabled={disabled}
-        onPress={() => {
-          feedback.speak(word);
-          setListened(true);
-        }}
-      />
-      {listened ? (
-        <View style={[styles.row, { gap: space(3) }]}>
-          <Button label={t('round_not_yet')} icon="refresh" variant="secondary" color={accent} disabled={disabled} onPress={() => onAnswer({ correct: false })} style={styles.flex} />
-          <Button label={t('round_said_it')} icon="checkmark" color={accent} disabled={disabled} onPress={() => onAnswer({ correct: true, score: 1 })} style={styles.flex} />
-        </View>
-      ) : null}
-    </View>
-  );
-}
 
 export const sayIt: ActivityDefinition<SayItRound> = {
   meta: ACTIVITIES['say-it'],

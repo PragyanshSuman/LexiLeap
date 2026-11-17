@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { Alert, Image, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { choiceRoundScore, clampLevel } from '@/engine/adaptive';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { choiceRoundScore, clampLevel, MISSES_BEFORE_BREAK } from '@/engine/adaptive';
 import { BADGE_MAP } from '@/engine/badges';
 import { ACTIVITIES } from '@/engine/catalog';
 import { nextPlanItem } from '@/engine/plan';
@@ -22,6 +22,7 @@ import { useAppStore } from '@/store/appStore';
 import type { Profile } from '@/store/profile';
 import { useTheme } from '@/theme/useTheme';
 import { AppText } from '@/ui/AppText';
+import { BACK_BUTTON, BackButton } from '@/ui/BackButton';
 import { Button, IconButton } from '@/ui/Button';
 import { Card } from '@/ui/Card';
 import { ProgressBar, StarRow } from '@/ui/controls';
@@ -31,8 +32,6 @@ import type { ActivityDefinition, RoundAnswer } from './types';
 const PRAISE: TranslationKey[] = ['praise_1', 'praise_2', 'praise_3', 'praise_4', 'praise_5', 'praise_6'];
 const ENCOURAGE: TranslationKey[] = ['encourage_1', 'encourage_2', 'encourage_3'];
 
-/** Misses in a row that count as struggling. */
-const MISSES_BEFORE_BREAK = 3;
 /** A wrong answer this soon after a round starts suggests guessing or rushing. */
 const RUSHED_MS = 1200;
 /** Don't nag: at most this many check-ins per session. */
@@ -86,8 +85,11 @@ export function ActivityRunner<R>({ definition, profile, focus, onInProgressChan
   const instructions = t(activityKey(meta.id, 'instructions'));
   const feedback = useFeedback();
   const window = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const recordSession = useAppStore((s) => s.recordSession);
-  const startLevel = useAppStore((s) => s.progress[profile.id]?.activities[meta.id]?.level ?? 1);
+  const maxLevel = profile.prefs.maxLevel ?? 3;
+  const missesBeforeBreak = MISSES_BEFORE_BREAK[profile.prefs.struggleSensitivity ?? 'balanced'];
+  const startLevel = Math.min(useAppStore((s) => s.progress[profile.id]?.activities[meta.id]?.level ?? 1), maxLevel) as Level;
 
   const [phase, setPhase] = useState<Phase>('intro');
   const [level, setLevel] = useState<Level>(startLevel);
@@ -127,7 +129,7 @@ export function ActivityRunner<R>({ definition, profile, focus, onInProgressChan
 
   const start = () => {
     stats.current = freshStats();
-    const lvl = clampLevel(useAppStore.getState().progress[profile.id]?.activities[meta.id]?.level ?? 1);
+    const lvl = clampLevel(Math.min(useAppStore.getState().progress[profile.id]?.activities[meta.id]?.level ?? 1, maxLevel));
     setLevel(lvl);
     setRounds(generate(lvl, definition.roundsPerSession));
     setGeneration((g) => g + 1);
@@ -200,7 +202,7 @@ export function ActivityRunner<R>({ definition, profile, focus, onInProgressChan
   const needsBreak = () => {
     const s = stats.current;
     if (s.prompts >= MAX_BREAK_PROMPTS) return false;
-    if (s.misses >= MISSES_BEFORE_BREAK || s.rushed >= 2) {
+    if (s.misses >= missesBeforeBreak || s.rushed >= 2) {
       s.struggles += 1;
       s.prompts += 1;
       s.misses = 0;
@@ -308,8 +310,8 @@ export function ActivityRunner<R>({ definition, profile, focus, onInProgressChan
   if (phase === 'intro') {
     return (
       <SafeAreaView style={[styles.flex, styles.column, { backgroundColor: colors.bg }]}>
-        <View style={[styles.topBar, styles.spread, { paddingHorizontal: space(4) }]}>
-          <IconButton icon="close" label={t('close')} onPress={onExit} />
+        <View style={[styles.topBar, styles.spread, { paddingLeft: insets.left + BACK_BUTTON.left, paddingRight: insets.right + space(4) }]}>
+          <BackButton onPress={onExit} />
           <InfoButton onPress={tour.open} />
         </View>
         <View style={[styles.center, { padding: space(6), gap: space(4) }]}>
@@ -351,8 +353,8 @@ export function ActivityRunner<R>({ definition, profile, focus, onInProgressChan
       {stage?.image ? <Image source={stage.image} resizeMode="cover" style={[styles.stageImage, { width: window.width, height: window.height }]} /> : null}
       {stage?.dark ? <StatusBar style="light" /> : null}
     <SafeAreaView style={[styles.flex, styles.column]}>
-      <View style={[styles.topBar, { paddingHorizontal: space(4), gap: space(3) }]}>
-        <IconButton icon="close" label={t('runner_stop')} onPress={confirmExit} color={chrome?.color} background={chrome?.background} />
+      <View style={[styles.topBar, { paddingLeft: insets.left + BACK_BUTTON.left, paddingRight: insets.right + space(4), gap: space(3) }]}>
+        <BackButton onPress={confirmExit} onDark={!!stage?.dark} label={t('runner_stop')} />
         <View style={styles.flex}>
           <ProgressBar value={(index + (banner?.kind === 'correct' || banner?.kind === 'revealed' ? 1 : 0)) / Math.max(1, rounds.length)} color={meta.color} />
           <AppText variant="caption" muted={!chrome} color={chrome?.color} center style={{ marginTop: 2 }}>
@@ -485,7 +487,8 @@ const styles = StyleSheet.create({
   stageImage: { position: 'absolute', top: 0, left: 0 },
   column: { width: '100%', maxWidth: 960, alignSelf: 'center' },
   center: { alignItems: 'center', justifyContent: 'center' },
-  topBar: { flexDirection: 'row', alignItems: 'center', minHeight: 64 },
+  // The back button sits at the standard spot (BACK_BUTTON) on every screen.
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingTop: BACK_BUTTON.top, paddingBottom: 8 },
   spread: { justifyContent: 'space-between' },
   bigIcon: { width: 120, height: 120, borderRadius: 60, alignItems: 'center', justifyContent: 'center' },
   levelPill: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999 },

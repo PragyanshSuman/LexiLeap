@@ -1,5 +1,5 @@
 import { alignPhonemes } from '@/speech/phonemes';
-import type { SoundResult, SpeechAssessment } from './types';
+import type { SoundResult } from './types';
 
 /** Words for the speech test: everyday, picture-able words covering every English sound. */
 export const SPEECH_TEST_WORDS = [
@@ -60,6 +60,3 @@ export function summarizeResults(items: SoundResult[]): AssessmentSummary {
   };
 }
 
-export function summarizeAssessment(assessment: SpeechAssessment): AssessmentSummary {
-  return summarizeResults(assessment.items);
-}

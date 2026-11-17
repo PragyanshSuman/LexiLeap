@@ -1,4 +1,5 @@
-import { choiceRoundScore, emptyActivityProgress, nextLevel, starsFor, updateMastery } from '@/engine/adaptive';
+import { choiceRoundScore, emptyActivityProgress, MISSES_BEFORE_BREAK, nextLevel, starsFor, updateMastery } from '@/engine/adaptive';
+import { applyPathSession, NODE_MAP, PATH_NODES } from '@/engine/path';
 import { ACTIVITY_ORDER } from '@/engine/catalog';
 import { buildDailyPlan, markPlanItem } from '@/engine/plan';
 import { applySession, emptyProgress, isOverLimit, PLAN_BONUS_STARS, topConfusions } from '@/engine/progress';
@@ -113,7 +114,8 @@ describe('daily plan', () => {
     };
     const plan = buildDailyPlan(state, { ...options, goal: 3 });
     const ids = plan.items.map((i) => i.activityId);
-    expect(ids.some((id) => id === 'rhyme' || id === 'syllables')).toBe(true);
+    const { ACTIVITIES } = jest.requireActual('@/engine/catalog');
+    expect(ids.some((id) => ACTIVITIES[id].skill === 'phonological')).toBe(true);
     expect(plan.reason).toContain('rhymes, syllables and sounds');
   });
 
@@ -215,6 +217,32 @@ describe('screen time', () => {
 
 describe('catalog', () => {
   it('lists every activity exactly once', () => {
-    expect(new Set(ACTIVITY_ORDER).size).toBe(12);
+    expect(new Set(ACTIVITY_ORDER).size).toBe(14);
+  });
+});
+
+describe('parent level ceiling and struggle sensitivity', () => {
+  const strong = () => ({ ...emptyActivityProgress(), level: 2 as const, levelSessions: 1, recent: [0.95] });
+
+  it('never levels up past the ceiling, and brings a child above it back down', () => {
+    expect(nextLevel(strong(), 1, 0, 2)).toEqual({ level: 2, change: null });
+    expect(nextLevel(strong(), 1, 0, 3)).toEqual({ level: 3, change: 'up' });
+    expect(nextLevel({ ...emptyActivityProgress(), level: 3 }, 0.8, 0, 1)).toEqual({ level: 1, change: 'down' });
+  });
+
+  it('counts Learning Path goals at the ceiling, so the path never gets stuck', () => {
+    const node = NODE_MAP['master-1'];
+    expect(node.minLevel).toBe(3);
+    const session = { activityId: node.activityId, level: 1 as const, accuracy: 0.95, day: DAY };
+    // Everything else done (well enough not to come back for review), so only master-1 is open for this activity.
+    const done = PATH_NODES.filter((n) => n.id !== 'master-1').map((n) => [n.id, { completedOn: DAY, best: 1 }]);
+    const unlocked = { nodes: Object.fromEntries(done), xp: 0 };
+    expect(applyPathSession(unlocked, session).completed).toEqual([]);
+    expect(applyPathSession(unlocked, session, 1).completed).toEqual(['master-1']);
+  });
+
+  it('steps in sooner when a parent asks for quick help', () => {
+    expect(MISSES_BEFORE_BREAK.quick).toBeLessThan(MISSES_BEFORE_BREAK.balanced);
+    expect(MISSES_BEFORE_BREAK.gentle).toBeGreaterThan(MISSES_BEFORE_BREAK.balanced);
   });
 });

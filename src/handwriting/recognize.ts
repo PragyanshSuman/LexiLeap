@@ -61,6 +61,10 @@ export interface LetterCheck {
   confidence: number;
   /** Set when the letter was written mirrored or upside down. */
   reversal: Reversal | null;
+  /** When reversed: how sure the model is that the turned copy is the target letter (0–1); else 0. */
+  reversalConfidence: number;
+  /** The model's best readings of the letter as written, best first. */
+  guesses: LetterGuess[];
 }
 
 /** Same letter, allowing capital/small mix-ups where the two look the same. */
@@ -99,6 +103,7 @@ export function checkLetter(model: HandwritingModel, strokes: InkStroke[], targe
   const best = reading.guesses[0];
   const confidence = targetProbability(reading, target);
   let reversal: Reversal | null = null;
+  let strongestReversal = 0;
   // When the letter is already this clearly right, no turned copy can beat it by the margin: skip the work.
   if (confidence < 1 - REVERSAL_MARGIN) {
     let strongest = Math.max(REVERSAL_FLOOR, confidence + REVERSAL_MARGIN);
@@ -106,9 +111,18 @@ export function checkLetter(model: HandwritingModel, strokes: InkStroke[], targe
       const p = targetProbability(readImage(model, turn(image), false), target);
       if (p > strongest) {
         strongest = p;
+        strongestReversal = p;
         reversal = kind;
       }
     }
   }
-  return { target, read: best.letter, correct: matches(best.letter, target) && reversal === null, confidence, reversal };
+  return {
+    target,
+    read: best.letter,
+    correct: matches(best.letter, target) && reversal === null,
+    confidence,
+    reversal,
+    reversalConfidence: reversal ? strongestReversal : 0,
+    guesses: reading.guesses,
+  };
 }

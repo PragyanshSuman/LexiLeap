@@ -1,7 +1,9 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BackButton } from '@/ui/BackButton';
 import { useT } from '@/i18n';
 import { DT } from '@/theme/dyslexiaTheme';
 import { useTheme } from '@/theme/useTheme';
@@ -25,7 +27,10 @@ export function AuthShell({
   background: [string, string, string];
   children: ReactNode;
 }) {
+  // Register can be opened from Login or the parent zone; the very first screen has nothing to go back to.
+  const canGoBack = router.canGoBack();
   return (
+    <View style={styles.flex}>
     <SafeAreaView style={styles.flex}>
       <LinearGradient colors={background} style={StyleSheet.absoluteFill} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
@@ -51,6 +56,8 @@ export function AuthShell({
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    {canGoBack ? <BackButton placement="floating" fallback="/login" /> : null}
+    </View>
   );
 }
 

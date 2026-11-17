@@ -9,8 +9,13 @@ import { AppText } from '@/ui/AppText';
 export const EXPRESSIONS: Record<Expression, { emoji: string; color: string; label: TranslationKey }> = {
   happy: { emoji: '😊', color: '#10B981', label: 'expr_happy' },
   focused: { emoji: '🙂', color: '#6366F1', label: 'expr_focused' },
+  surprised: { emoji: '😮', color: '#0EA5E9', label: 'expr_surprised' },
+  frustrated: { emoji: '😣', color: '#D97706', label: 'expr_frustrated' },
+  sad: { emoji: '😢', color: '#8B5CF6', label: 'expr_sad' },
+  worried: { emoji: '😟', color: '#A16207', label: 'expr_worried' },
   tired: { emoji: '😴', color: '#64748B', label: 'expr_tired' },
   'looking-away': { emoji: '👀', color: '#F59E0B', label: 'expr_looking_away' },
+  active: { emoji: '✋', color: '#14B8A6', label: 'expr_active' },
   away: { emoji: '🚶', color: '#94A3B8', label: 'expr_away' },
 };
 

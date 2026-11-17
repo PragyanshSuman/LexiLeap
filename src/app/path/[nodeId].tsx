@@ -6,14 +6,15 @@ import { Animated, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ACTIVITY_DEFINITIONS } from '@/activities/registry';
 import { ACTIVITIES } from '@/engine/catalog';
-import { NODE_MAP, nodeStatus, nodeXp, PATH_UNITS, type NodeVariant } from '@/engine/path';
+import { NODE_MAP, nodeStatus, nodeXp, PATH_UNITS, type NodeVariant, requiredLevel } from '@/engine/path';
 import { useToday } from '@/hooks/useToday';
 import { activityKey, nodeTitle, skillKey, unitKey, useT, type TranslationKey } from '@/i18n';
 import { useActiveProfile, useProgress } from '@/store/appStore';
 import { DT } from '@/theme/dyslexiaTheme';
 import { useTheme } from '@/theme/useTheme';
 import { AppText } from '@/ui/AppText';
-import { Button, IconButton } from '@/ui/Button';
+import { BACK_BUTTON, BackButton } from '@/ui/BackButton';
+import { Button } from '@/ui/Button';
 import { goBackOr } from '@/ui/Header';
 
 const DIFFICULTY: Record<NodeVariant, TranslationKey> = {
@@ -63,14 +64,15 @@ export default function PathNodeBriefing() {
   const best = progress.path.nodes[node.id]?.best;
   const pct = Math.round(node.target * 100);
   const minutes = Math.max(2, Math.round((ACTIVITY_DEFINITIONS[node.activityId].roundsPerSession * 25) / 60));
-  const goal = node.minLevel > 1 ? t('brief_goal_level', { pct, n: node.minLevel }) : t('brief_goal', { pct });
+  const needed = requiredLevel(node, profile.prefs.maxLevel);
+  const goal = needed > 1 ? t('brief_goal_level', { pct, n: needed }) : t('brief_goal', { pct });
 
   return (
     <LinearGradient colors={['#1E1B4B', '#0F0E2B']} style={styles.flex}>
       <StatusBar style="light" />
       <SafeAreaView style={styles.flex}>
         <View style={styles.topBar}>
-          <IconButton icon="chevron-back" label={t('go_back')} onPress={() => goBackOr('/path')} color="#FFFFFF" background="rgba(255,255,255,0.12)" />
+          <BackButton onDark fallback="/path" />
         </View>
         <View style={styles.center}>
           <Animated.View style={[styles.card, { backgroundColor: colors.surface, opacity: fade, transform: [{ scale }] }]}>
@@ -147,7 +149,7 @@ function Chip({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  topBar: { paddingHorizontal: 16, paddingVertical: 8 },
+  topBar: { paddingLeft: BACK_BUTTON.left, paddingTop: BACK_BUTTON.top, paddingBottom: 8 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20, gap: 16 },
   card: { width: '100%', maxWidth: 460, borderRadius: 28, overflow: 'hidden', ...DT.shadow.medium },
   cardHeader: { padding: 24, alignItems: 'center', gap: 8 },

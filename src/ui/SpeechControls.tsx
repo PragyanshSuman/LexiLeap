@@ -60,10 +60,12 @@ interface MicButtonProps {
   color?: string;
   /** A short message under the button (e.g. "I didn't hear anything"). */
   message?: string | null;
+  /** Tapping again while listening stops it (recording); otherwise the button waits until listening ends. */
+  stoppable?: boolean;
 }
 
 /** 🎤 The big microphone: accent colour when ready, a warm red ring while listening. */
-export function MicButton({ label, listeningLabel, listening, busy, disabled, onPress, color, message }: MicButtonProps) {
+export function MicButton({ label, listeningLabel, listening, busy, disabled, onPress, color, message, stoppable }: MicButtonProps) {
   const { colors } = useTheme();
   const base = color ?? colors.primary;
   const gradient = listening ? accentGradient(colors.danger) : accentGradient(base);
@@ -74,7 +76,7 @@ export function MicButton({ label, listeningLabel, listening, busy, disabled, on
         accessibilityRole="button"
         accessibilityLabel={listening ? listeningLabel : label}
         accessibilityState={{ busy: listening || !!busy, disabled: !!disabled }}
-        disabled={disabled || listening || busy}
+        disabled={disabled || busy || (listening && !stoppable)}
         onPress={onPress}
         style={[styles.micShell, disabled && styles.disabled]}
         innerStyle={styles.micInner}

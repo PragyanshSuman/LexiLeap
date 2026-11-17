@@ -17,6 +17,7 @@ import { useParentSession } from '@/store/parentSession';
 import { DT } from '@/theme/dyslexiaTheme';
 import { useTheme } from '@/theme/useTheme';
 import { AppText } from '@/ui/AppText';
+import { BACK_BUTTON } from '@/ui/BackButton';
 import { FadeInUp, PressableScale } from '@/ui/motion';
 
 const TOUR: TourStep[] = [
@@ -39,7 +40,7 @@ const activityTile = (id: ActivityId, subtitle: TranslationKey): Tile => ({
   subtitle,
   icon: ACTIVITIES[id].emoji,
   color: ACTIVITIES[id].color,
-  href: id === 'trace' ? '/letters' : `/activity/${id}`,
+  href: id === 'trace' ? '/tracing' : id === 'rhyme' ? '/rhyme' : `/activity/${id}`,
 });
 
 const SECTIONS: { title: TranslationKey; tiles: Tile[] }[] = [
@@ -54,7 +55,7 @@ const SECTIONS: { title: TranslationKey; tiles: Tile[] }[] = [
       activityTile('syllables', 'tile_syllables'),
       { title: 'phonic_title', subtitle: 'tile_phonic', icon: '🎤', color: DT.accent.indigo, href: '/phonic-check' },
       { title: 'magic_title', subtitle: 'tile_magic', icon: '✨', color: DT.accent.rose, href: '/magic' },
-      { title: 'write_title', subtitle: 'tile_write', icon: '🏆', color: DT.accent.gold, href: '/writing' },
+      { title: 'write_title', subtitle: 'tile_write', icon: '🏆', color: DT.accent.gold, href: '/mastery' },
     ],
   },
   {
@@ -78,7 +79,6 @@ const SECTIONS: { title: TranslationKey; tiles: Tile[] }[] = [
     title: 'section_progress',
     tiles: [
       { title: 'mood_track_title', subtitle: 'tile_mood_track', icon: '📈', color: DT.accent.sky, href: '/mood-track' },
-      { title: 'journey_title', subtitle: 'tile_journey', icon: '📄', color: DT.accent.teal, href: '/journey' },
       { title: 'tile_rewards_title', subtitle: 'tile_rewards', icon: '🏆', color: DT.accent.gold, href: '/rewards' },
       { title: 'tile_comfort_title', subtitle: 'tile_comfort', icon: '👓', color: DT.accent.sky, href: '/comfort' },
     ],
@@ -242,7 +242,8 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, gap: 12 },
+  // The ☰ menu sits where the back button sits on every other screen (BACK_BUTTON).
+  header: { flexDirection: 'row', alignItems: 'center', paddingLeft: BACK_BUTTON.left, paddingRight: 20, paddingTop: BACK_BUTTON.top, paddingBottom: 12, borderBottomWidth: 1, gap: 12 },
   headerText: { flex: 1, marginLeft: 3 },
   settingsButton: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   avatarMini: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, alignItems: 'center', justifyContent: 'center', elevation: 3 },

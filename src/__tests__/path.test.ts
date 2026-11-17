@@ -28,7 +28,7 @@ describe('learning path curriculum', () => {
         expect(PATH_NODES.findIndex((x) => x.id === p)).toBeLessThan(i);
       }
     });
-    PATH_UNITS.forEach((u) => expect(unitNodes(u.id).length).toBe(5));
+    PATH_UNITS.forEach((u) => expect(unitNodes(u.id).length).toBeGreaterThanOrEqual(5));
   });
 
   it('can be completed from start to finish', () => {

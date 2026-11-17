@@ -17,7 +17,7 @@ export default function Play() {
   const profile = useActiveProfile();
   const progress = useProgress(profile?.id);
 
-  const open = (id: ActivityId) => router.push(id === 'trace' ? '/letters' : `/activity/${id}`);
+  const open = (id: ActivityId) => router.push(id === 'trace' ? '/tracing' : `/activity/${id}`);
 
   return (
     <Screen scroll edges={['top']} header={<DrawerScreenHeader title={t('nav_all_activities')} />}>

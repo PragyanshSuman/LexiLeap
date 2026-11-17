@@ -3,15 +3,15 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { FocusTracker } from '@/components/FocusTracker';
 import { PronunciationCard } from '@/components/PronunciationCard';
+import { RecordCheck } from '@/components/RecordCheck';
 import { SPEAKING_WORDS } from '@/content/words';
-import { scoreSpokenWord } from '@/engine/assessment';
 import type { SoundResult } from '@/engine/types';
 import { useWordListener } from '@/hooks/useWordListener';
 import { dayKey } from '@/lib/date';
 import { useT, type TranslationKey } from '@/i18n';
 import { useFeedback } from '@/services/feedback';
-import { cleanWord, pronounceHeard, usePronunciation } from '@/services/pronunciationDictionary';
-import { matchSpokenWord } from '@/services/speechMatch';
+import { cleanWord, usePronunciation } from '@/services/pronunciationDictionary';
+import { scoreSpeech } from '@/services/speechScoring';
 import { soundOf } from '@/speech/phonemes';
 import { useActiveProfile, useAppStore, useProgress } from '@/store/appStore';
 import { DT } from '@/theme/dyslexiaTheme';
@@ -58,10 +58,15 @@ export default function PhonicCheck() {
       setMessage(outcome.error === 'no-speech' ? 'round_no_speech' : outcome.error === 'permission' ? 'round_mic_off' : 'round_mic_error');
       return;
     }
+    await scoreHeard(outcome.transcripts);
+  };
+
+  /** Scores what the microphone heard, sound by sound. */
+  const scoreHeard = async (transcripts: string[]) => {
+    if (!word || !pronunciation) return;
+    setMessage(null);
     setChecking(true);
-    const exact = matchSpokenWord(word, outcome.transcripts).match === 'exact';
-    const heardSounds = exact ? pronunciation.phonemes : await pronounceHeard(outcome.transcripts);
-    const scored = scoreSpokenWord(word, pronunciation.phonemes, heardSounds, outcome.transcripts[0]);
+    const scored = await scoreSpeech(word, transcripts);
     setChecking(false);
     setResult({ word, result: scored });
     logSpeechCheck(profile.id, { ...scored, day: dayKey() });
@@ -104,11 +109,11 @@ export default function PhonicCheck() {
       <View style={styles.body}>
         {mode === 'list' ? (
           <View style={styles.nav}>
-            <IconButton icon="chevron-back" label={t('go_back')} onPress={() => setIndex((i) => (i - 1 + words.length) % words.length)} />
+            <IconButton icon="arrow-back" label={t('phonic_previous')} onPress={() => setIndex((i) => (i - 1 + words.length) % words.length)} />
             <AppText variant="label" muted>
               {t('phonic_progress', { a: (index % words.length) + 1, b: words.length })}
             </AppText>
-            <IconButton icon="chevron-forward" label={t('phonic_next')} onPress={next} />
+            <IconButton icon="arrow-forward" label={t('phonic_next')} onPress={next} />
           </View>
         ) : (
           <View style={styles.row}>
@@ -130,7 +135,7 @@ export default function PhonicCheck() {
         {shown ? (
           <FeedbackBanner
             kind={shown.correct ? 'correct' : 'tryAgain'}
-            text={shown.score === 1 ? t('phonic_perfect') : t('phonic_score', { n: Math.round((shown.score ?? 0) * 100) })}
+            text={shown.score === 1 || (shown.score === null && shown.correct) ? t('phonic_perfect') : shown.score === null ? t('encourage_2') : t('phonic_score', { n: Math.round(shown.score * 100) })}
             detail={[shown.heard ? t('phonic_heard', { word: shown.heard }) : null, practise.length ? `${t('phonic_practice')} ${practise.join(', ')}` : null].filter(Boolean).join('\n')}
           />
         ) : word && listener.available ? (
@@ -145,7 +150,16 @@ export default function PhonicCheck() {
             onPress={() => void record()}
           />
         ) : word ? (
-          <FeedbackBanner kind="info" text={t('phonic_unavailable')} />
+          <RecordCheck
+            color={ACCENT}
+            onMark={(correct) => {
+              const marked: SoundResult = { word, score: null, correct, missed: [], changed: [] };
+              setResult({ word, result: marked });
+              logSpeechCheck(profile.id, { ...marked, day: dayKey() });
+              if (correct) feedback.correct();
+              else feedback.tryAgain();
+            }}
+          />
         ) : (
           <AppText center muted>
             {t('phonic_type')}

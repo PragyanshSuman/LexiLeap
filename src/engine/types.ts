@@ -1,6 +1,7 @@
 import type { FocusSample } from './focus';
 import type { DayKey } from '@/lib/date';
 import type { PathState } from './path';
+import type { SessionFeatureSummary } from '@/writing/types';
 
 export type ActivityId =
   | 'trace'
@@ -14,7 +15,9 @@ export type ActivityId =
   | 'syllables'
   | 'sound-boxes'
   | 'sight-words'
-  | 'word-builder';
+  | 'word-builder'
+  | 'rhyme-train'
+  | 'voice-vault';
 
 export type SkillId = 'letters' | 'sounds' | 'visual' | 'focus' | 'phonological' | 'words';
 
@@ -115,6 +118,10 @@ export interface ProgressState {
   writing: LetterAttempt[];
   /** Focus helper readings (camera, opt-in), newest last. */
   focus: FocusSample[];
+  /** Letter Mastery reports (letters written on the writing canvas), newest last. */
+  mastery: SessionFeatureSummary[];
+  /** Voice Vault: rhymes the child has said out loud, by the word they rhymed with. */
+  rhymeVault: Record<string, string[]>;
 }
 
 /** A word said aloud and how its sounds compared with the target. */

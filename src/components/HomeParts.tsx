@@ -7,6 +7,7 @@ import { useFeedback } from '@/services/feedback';
 import { DT } from '@/theme/dyslexiaTheme';
 import { useTheme } from '@/theme/useTheme';
 import { AppText } from '@/ui/AppText';
+import { BACK_BUTTON, BackButton } from '@/ui/BackButton';
 import { PressableScale } from '@/ui/motion';
 
 /**
@@ -102,12 +103,15 @@ export function MenuButton() {
   );
 }
 
-/** Screen title row with the menu button, used by every screen reachable from the drawer. */
+/**
+ * Title row for Play, Rewards and Reading settings: the standard back button (to Home) at the same spot
+ * as on every other screen. The side menu stays on Home (☰) and opens with a swipe from the edge.
+ */
 export function DrawerScreenHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   const { colors } = useTheme();
   return (
     <View style={[styles.headerRow, { borderBottomColor: colors.border }]}>
-      <MenuButton />
+      <BackButton fallback="/home" />
       <View style={styles.flex}>
         <AppText variant="heading" numberOfLines={1} accessibilityRole="header">
           {title}
@@ -134,5 +138,5 @@ const styles = StyleSheet.create({
   cardInfo: { flex: 1, marginLeft: 12, marginRight: 4 },
   menuButton: { width: 44, height: 44, borderRadius: DT.radius.md, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.8 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 15, paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 15, paddingLeft: BACK_BUTTON.left, paddingRight: 20, paddingTop: BACK_BUTTON.top, paddingBottom: 12, borderBottomWidth: 1 },
 });

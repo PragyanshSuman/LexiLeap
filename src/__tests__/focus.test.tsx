@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import Journey from '@/app/journey';
 import MoodTrack from '@/app/mood-track';
+import FocusReport from '@/app/parent/focus/[childId]';
+import Journey from '@/app/parent/journey/[childId]';
 import { FocusTracker } from '@/components/FocusTracker';
 import { analyzeFace, focusByDay, needsFocusBreak, summarizeFocus, type FocusSample } from '@/engine/focus';
 import { emptyProgress } from '@/engine/progress';
@@ -18,6 +19,7 @@ jest.mock('expo-router', () => {
     router: { back: jest.fn(), replace: jest.fn(), push: jest.fn(), canGoBack: () => true },
     Redirect: () => null,
     useFocusEffect: (effect: () => void | (() => void)) => useEffect(effect, [effect]),
+    useLocalSearchParams: () => ({ childId: 'kid' }),
   };
 });
 jest.mock('expo-camera', () => {
@@ -146,8 +148,8 @@ describe('progress reports', () => {
     });
   });
 
-  it('shows the Mood Track per activity', async () => {
-    await render(<MoodTrack />);
+  it('shows grown-ups the focus report per activity', async () => {
+    await render(<FocusReport />);
     expect(screen.getByText('Rhyme Time')).toBeTruthy();
     expect(screen.getByText('Write & Score')).toBeTruthy();
     expect(screen.getAllByText('1 readings')).toHaveLength(2);
@@ -155,7 +157,14 @@ describe('progress reports', () => {
     expect(screen.getByText('▲ Show less')).toBeTruthy();
   });
 
-  it('shows the learning profile', async () => {
+  it("keeps the child's Mood Track to their own check-ins (no focus analysis)", async () => {
+    await render(<MoodTrack />);
+    expect(screen.getByText('Your check-ins this week')).toBeTruthy();
+    expect(screen.queryByText('Rhyme Time')).toBeNull();
+    expect(screen.queryByText(/readings/)).toBeNull();
+  });
+
+  it('shows grown-ups the learning profile', async () => {
     await render(<Journey />);
     expect(screen.getByText('Learning Profile')).toBeTruthy();
     expect(screen.getByText('55%')).toBeTruthy(); // focus score

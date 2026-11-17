@@ -229,6 +229,54 @@ export function generateRhymeRounds(level: Level, rng: Rng, count: number): Rhym
   });
 }
 
+// ── Rhyme Train ──────────────────────────────────────────────────────────────
+
+export interface RhymeTrainRound {
+  /** The word on the engine. */
+  engine: string;
+  /** Every carriage word that rhymes with it. */
+  answers: string[];
+  /** All carriage words, in the order shown. */
+  options: string[];
+}
+
+/**
+ * Load the train: find every carriage that rhymes with the engine's word.
+ * Level 1: 2 rhymes among 4 carriages. Level 2: 2–3 rhymes among 5. Level 3: among 6, with
+ * sound-alikes that start like the engine word but don't rhyme.
+ */
+export function generateRhymeTrainRounds(level: Level, rng: Rng, count: number): RhymeTrainRound[] {
+  const families = RHYME_FAMILIES.filter((f) => f.length >= 3);
+  const total = { 1: 4, 2: 5, 3: 6 }[level];
+  return sampleCycling(rng, families, count).map((family) => {
+    const rhymeCount = level === 1 ? 2 : Math.min(family.length - 1, 3);
+    const [engine, ...rest] = sample(rng, family, family.length);
+    const answers = rest.slice(0, rhymeCount);
+    const others = RHYME_FAMILIES.filter((f) => f !== family).flat();
+    const tricky = level === 3 ? sample(rng, others.filter((w) => w[0] === engine[0]), 2) : [];
+    const distractors = [...tricky, ...sample(rng, others.filter((w) => !tricky.includes(w)), total - answers.length - tricky.length)];
+    return { engine, answers, options: shuffle(rng, [...answers, ...distractors]) };
+  });
+}
+
+// ── Voice Vault ──────────────────────────────────────────────────────────────
+
+export interface VoiceVaultRound {
+  word: string;
+  /** Picture words that rhyme with it, offered as hints and shown when revealed. */
+  rhymes: string[];
+}
+
+/** Say a rhyme out loud. Level 1 uses the biggest rhyme families (easiest to find a rhyme for). */
+export function generateVoiceVaultRounds(level: Level, rng: Rng, count: number): VoiceVaultRound[] {
+  const minSize = { 1: 3, 2: 2, 3: 2 }[level];
+  const pool = RHYME_FAMILIES.filter((f) => f.length >= minSize);
+  return sampleCycling(rng, pool, count).map((family) => {
+    const [word] = sample(rng, family, 1);
+    return { word, rhymes: family.filter((w) => w !== word) };
+  });
+}
+
 // ── Clap the Beats ───────────────────────────────────────────────────────────
 
 export interface SyllableRound {

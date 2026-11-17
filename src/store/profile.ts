@@ -1,3 +1,4 @@
+import type { Level } from '@/engine/types';
 import type { FontChoice } from '@/theme/fonts';
 import type { OverlayName, ThemeName } from '@/theme/palettes';
 
@@ -30,7 +31,16 @@ export interface Prefs {
    * tiredness or distraction (on the device; no photo is kept). Off unless a parent turns it on.
    */
   focusHelper: boolean;
+  /**
+   * How quickly the app steps in when the child struggles (misses in a row before a calm break and an
+   * easier level is offered). The original's "AI frustration sensitivity". Parent-controlled.
+   */
+  struggleSensitivity: StruggleSensitivity;
+  /** Highest difficulty level activities may reach (the original's "max difficulty ceiling"). Parent-controlled. */
+  maxLevel: Level;
 }
+
+export type StruggleSensitivity = 'gentle' | 'balanced' | 'quick';
 
 export interface Profile {
   id: string;
@@ -64,6 +74,8 @@ export const DEFAULT_PREFS: Prefs = {
   dailyGoal: 4,
   breakReminderMin: 20,
   focusHelper: false,
+  struggleSensitivity: 'balanced',
+  maxLevel: 3,
 };
 
 export const AVATARS = ['🦊', '🐼', '🐯', '🦁', '🐸', '🐵', '🐰', '🐻', '🐨', '🦄', '🐙', '🐢', '🦉', '🐳', '🐝', '🦖'];

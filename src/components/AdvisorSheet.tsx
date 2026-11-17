@@ -12,6 +12,7 @@ import { useTheme } from '@/theme/useTheme';
 import { AppText } from '@/ui/AppText';
 import { Button } from '@/ui/Button';
 import { Bob } from '@/ui/motion';
+import { ALL_ORIENTATIONS } from '@/ui/orientations';
 
 /** Slide-up sheet with a gradient header, used by the AI Roadmap advisors. */
 function Sheet({
@@ -53,7 +54,7 @@ function Sheet({
   }, [visible, slide, fade, prefs.reduceMotion]);
 
   return (
-    <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={onClose} supportedOrientations={ALL_ORIENTATIONS}>
       <Animated.View style={[styles.backdrop, { opacity: fade }]}>
         <Animated.View style={[styles.sheet, { backgroundColor: theme.surface, paddingBottom: insets.bottom + 16, transform: [{ translateY: slide }] }]} accessibilityViewIsModal>
           <LinearGradient colors={colors} style={styles.header}>

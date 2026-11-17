@@ -31,13 +31,16 @@ export function nextLevel(
   current: ActivityProgress,
   accuracy: number,
   struggles: number,
+  /** A parent's ceiling: never move above this level (and come down to it if above). */
+  maxLevel: Level = 3,
 ): { level: Level; change: 'up' | 'down' | null } {
   const { level } = current;
+  if (level > maxLevel) return { level: maxLevel, change: 'down' };
   // `levelSessions` resets on every level change, so this only looks at the current level.
   const previousWasStrong =
     current.levelSessions >= 1 && (current.recent[current.recent.length - 1] ?? 0) >= LEVEL_UP_ACCURACY;
   if (
-    level < 3 &&
+    level < maxLevel &&
     (accuracy >= INSTANT_LEVEL_UP_ACCURACY || (accuracy >= LEVEL_UP_ACCURACY && previousWasStrong))
   ) {
     return { level: clampLevel(level + 1), change: 'up' };
@@ -73,3 +76,6 @@ export function choiceRoundScore(wrongAttempts: number, revealed: boolean): numb
   if (wrongAttempts === 1) return 0.5;
   return 0.25;
 }
+
+/** Misses in a row before the runner offers a calm break and an easier level, per sensitivity. */
+export const MISSES_BEFORE_BREAK = { gentle: 4, balanced: 3, quick: 2 } as const;
